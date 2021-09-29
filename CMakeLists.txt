@@ -117,6 +117,7 @@ set(lib_src
   Sawyer/Clexer.C
   Sawyer/CommandLine.C
   Sawyer/CommandLineBoost.C
+  Sawyer/Database.C
   Sawyer/DocumentMarkup.C
   Sawyer/DocumentBaseMarkup.C
   Sawyer/DocumentPodMarkup.C
