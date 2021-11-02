@@ -298,8 +298,10 @@
 #define SAWYER_VERSION_PATCH    0
 #endif
 
+//--------------------------------------------------------------------------------------------------------------------------------
 // Macros for thread-safety portability. This allows Sawyer to be compiled with or without thread support and not have a huge
 // proliferation of conditional compilation directives in the main body of source code.
+//--------------------------------------------------------------------------------------------------------------------------------
 #ifdef _REENTRANT
     #define SAWYER_MULTI_THREADED 1
     #define SAWYER_THREAD_TAG Sawyer::MultiThreadedTag
@@ -323,39 +325,18 @@
      #define SAWYER_THREAD_LOCAL /*void*/
 #endif
 
+// SAWYER_EXPORT -- Workarounds for Microsoft compilers, otherwise non-static functions won't be callable in shared libraries.
 #ifdef BOOST_WINDOWS
-    //--------------------------
-    // Microsoft Windows
-    //--------------------------
     // FIXME[Robb Matzke 2014-06-18]: get rid of ROSE_UTIL_EXPORTS; cmake can only have one DEFINE_SYMBOL
     #if defined(SAWYER_DO_EXPORTS) || defined(ROSE_UTIL_EXPORTS) // defined in CMake when compiling libsawyer
         #define SAWYER_EXPORT __declspec(dllexport)
-        #if _MSC_VER
-            #define SAWYER_EXPORT_NORETURN __declspec(dllexport noreturn)
-        #else
-            // MinGW complains about __declspec(dllexport noreturn), so use only __declspec(dllexport) instead.
-            #define SAWYER_EXPORT_NORETURN __declspec(dllexport)
-        #endif
     #else
         #define SAWYER_EXPORT __declspec(dllimport)
-        #define SAWYER_EXPORT_NORETURN __declspec(noreturn)
     #endif
-#elif defined(__APPLE__) && defined(__MACH__)
-    //--------------------------
-    // Apple OSX, iOS, Darwin
-    //--------------------------
-    #define SAWYER_EXPORT /*void*/
-
-    // This was changed from _Noreturn to compile with g++17. /*void*/ doesn't seem to cause problems for OSX [Rasmussen
-    // 2019.09.03]
-    #define SAWYER_EXPORT_NORETURN /*void*/
 #else
-    //--------------------------
-    // Other OS compilers
-    //--------------------------
     #define SAWYER_EXPORT /*void*/
-    #define SAWYER_EXPORT_NORETURN /*void*/
 #endif
+
 
 #define SAWYER_LINKAGE_INFO SAWYER_VERSION_MAJOR, SAWYER_VERSION_MINOR, SAWYER_VERSION_PATCH, SAWYER_MULTI_THREADED
 #define SAWYER_CHECK_LINKAGE Sawyer::initializeLibrary(SAWYER_LINKAGE_INFO)
@@ -437,7 +418,6 @@ SAWYER_EXPORT std::string thisExecutableName();
 //--------------------------
 
 # define SAWYER_ATTR_UNUSED /*void*/
-# define SAWYER_ATTR_NORETURN /*void*/
 # define SAWYER_PRETTY_FUNCTION __FUNCSIG__
 # define SAWYER_MAY_ALIAS /*void*/
 # define SAWYER_STATIC_INIT /*void*/
@@ -455,7 +435,6 @@ SAWYER_EXPORT std::string thisExecutableName();
 //--------------------------
 
 # define SAWYER_ATTR_UNUSED /*void*/
-# define SAWYER_ATTR_NORETURN /*void*/
 # define SAWYER_PRETTY_FUNCTION __PRETTY_FUNCTION__
 # define SAWYER_MAY_ALIAS /*void*/
 # define SAWYER_STATIC_INIT /*void*/
@@ -470,7 +449,6 @@ SAWYER_EXPORT std::string thisExecutableName();
 //--------------------------
 
 # define SAWYER_ATTR_UNUSED /*void*/
-# define SAWYER_ATTR_NORETURN /*void*/
 # define SAWYER_PRETTY_FUNCTION __PRETTY_FUNCTION__
 # define SAWYER_MAY_ALIAS /*void*/
 # define SAWYER_STATIC_INIT /*void*/
@@ -489,7 +467,6 @@ SAWYER_EXPORT std::string thisExecutableName();
 //--------------------------
 
 # define SAWYER_ATTR_UNUSED __attribute__((unused))
-# define SAWYER_ATTR_NORETURN __attribute__((noreturn))
 # define SAWYER_PRETTY_FUNCTION __PRETTY_FUNCTION__
 # define SAWYER_MAY_ALIAS __attribute__((may_alias))
 # define SAWYER_DEPRECATED(WHY) __attribute__((deprecated))
