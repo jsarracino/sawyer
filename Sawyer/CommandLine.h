@@ -22,6 +22,7 @@
 #include <cerrno>
 #include <ctype.h>
 #include <list>
+#include <regex>
 #include <set>
 #include <stdexcept>
 #include <string>
@@ -757,6 +758,13 @@ template<>
 struct LexicalCast<boost::regex> {
     static boost::regex convert(const std::string &src) {
         return boost::regex(src);
+    }
+};
+
+template<>
+struct LexicalCast<std::regex> {
+    static std::regex convert(const std::string &src) {
+        return std::regex(src);
     }
 };
 
