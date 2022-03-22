@@ -6,6 +6,7 @@
 #include <Sawyer/Database.h>
 
 #include <boost/filesystem.hpp>
+#include <boost/format.hpp>
 #include <boost/lexical_cast.hpp>
 #include <Sawyer/Optional.h>
 #include <sqlite3.h>
@@ -65,7 +66,7 @@ private:
             throw Exception("invalid database name: internal NUL character");
         int status = sqlite3_open(filename.string().c_str(), &connection);
         if (SQLITE_OK != status)
-            throw Exception(sqlite3_errstr(status));
+            throw Exception("SqliteConnection::open(" + boost::lexical_cast<std::string>(filename) + "): " + sqlite3_errstr(status));
         sqlite3_busy_timeout(connection, 1000 /*ms*/);
     }
 
@@ -77,7 +78,7 @@ private:
             int status = sqlite3_close(connection);
             connection = nullptr;
             if (SQLITE_OK != status && SQLITE_BUSY != status)
-                throw Exception(sqlite3_errstr(status));
+                throw Exception("SqliteConnection::close(): " + std::string(sqlite3_errstr(status)));
         }
     }
 
@@ -111,13 +112,13 @@ private:
         ASSERT_not_null(sqlite);
         int status = sqlite3_prepare_v2(sqlite->connection, lowSql.c_str(), lowSql.size()+1, &stmt, &rest);
         if (SQLITE_OK != status)
-            throw Exception(sqlite3_errstr(status));
+            throw Exception("SqliteStatement(" + sql + "): " + sqlite3_errstr(status));
         while (rest && ::isspace(*rest))
             ++rest;
         if (rest && *rest) {
             sqlite3_finalize(stmt);                     // clean up if possible; ignore error otherwise
             stmt = nullptr;
-            throw Exception("extraneous text after end of SQL statement");
+            throw Exception("SqliteStatement(" + sql + "): extraneous text after end of SQL statement");
         }
     }
 
@@ -132,9 +133,9 @@ public:
 private:
     void reset(bool doUnbind) override {
         if (!connection())
-            throw Exception("connection is closed");
+            throw Exception("SqliteStatement::reset(): connection is closed");
         if (state() == Statement::DEAD)
-            throw Exception("statement is dead");
+            throw Exception("SqliteStatement::reset(): statement is dead");
 
         // Reset the SQL statement with delayed error reporting
         int status = SQLITE_OK;
@@ -147,20 +148,20 @@ private:
         // Finally report errors from above
         if (SQLITE_OK != status) {
             state(Statement::DEAD);                     // we no longer know the SQLite3 state
-            throw Exception(sqlite3_errstr(status));
+            throw Exception("SqliteStatement::reset(): " + std::string(sqlite3_errstr(status)));
         }
     }
 
     void bindLow(size_t idx, int value) override {
         int status = sqlite3_bind_int(stmt, idx+1, value);
         if (SQLITE_OK != status)
-            throw Exception(sqlite3_errstr(status));
+            throw Exception((boost::format("SqliteStatement::bindLow(idx=%d): %s") % idx % sqlite3_errstr(status)).str());
     }
 
     void bindLow(size_t idx, int64_t value) override {
         int status = sqlite3_bind_int64(stmt, idx+1, value);
         if (SQLITE_OK != status)
-            throw Exception(sqlite3_errstr(status));
+            throw Exception((boost::format("SqliteStatement::bindLow(idx=%d): %s") % idx % sqlite3_errstr(status)).str());
     }
 
     void bindLow(size_t idx, size_t value) override {
@@ -174,13 +175,13 @@ private:
     void bindLow(size_t idx, double value) override {
         int status = sqlite3_bind_double(stmt, idx+1, value);
         if (SQLITE_OK != status)
-            throw Exception(sqlite3_errstr(status));
+            throw Exception((boost::format("SqliteStatement::bindLow(idx=%d): %s") % idx % sqlite3_errstr(status)).str());
     }
 
     void bindLow(size_t idx, const std::string &value) override {
         int status = sqlite3_bind_text(stmt, idx+1, value.c_str(), value.size(), SQLITE_TRANSIENT);
         if (SQLITE_OK != status)
-            throw Exception(sqlite3_errstr(status));
+            throw Exception((boost::format("SqliteStatement::bindLow(idx=%d): %s") % idx % sqlite3_errstr(status)).str());
     }
 
     void bindLow(size_t idx, const char *value) override {
@@ -190,13 +191,13 @@ private:
     void bindLow(size_t idx, const std::vector<uint8_t> &value) override {
         int status = sqlite3_bind_blob(stmt, idx+1, value.data(), value.size(), SQLITE_TRANSIENT);
         if (SQLITE_OK != status)
-            throw Exception(sqlite3_errstr(status));
+            throw Exception((boost::format("SqliteStatement::bindLow(idx=%d): %s") % idx % sqlite3_errstr(status)).str());
     }
     
     void bindLow(size_t idx, Nothing) override {
         int status = sqlite3_bind_null(stmt, idx+1);
         if (SQLITE_OK != status)
-            throw Exception(sqlite3_errstr(status));
+            throw Exception((boost::format("SqliteStatement::bindLow(idx=%d): %s") % idx % sqlite3_errstr(status)).str());
     }
 
     Iterator beginLow() override {
@@ -212,7 +213,7 @@ private:
             return Iterator();
         } else {
             state(Statement::DEAD);
-            throw Exception(sqlite3_errstr(status));
+            throw Exception("SqliteStatement::nextLow(): " + std::string(sqlite3_errstr(status)));
         }
     }
 
