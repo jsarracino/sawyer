@@ -21,9 +21,12 @@ ifneq (@(LIBPQXX),)
     LDFLAGS_STATIC += -L@(LIBPQXX)/lib -lpqxx
 endif
 
+export ALL_LIBDIRS
+ALL_LIBDIRS = ${ALL_LIBDIRS}
+
 # commands
 compile_lib = $(ROOT)/tup-scripts/generate-compile-link-rules --linkage=@(LINKAGE)
-compile_tool = $(ROOT)/tup-scripts/generate-compile-link-rules --linkage=@(LINKAGE) $(ROOT)/Sawyer/libsawyer
+compile_tool = $(ROOT)/tup-scripts/generate-compile-link-rules --link=exe --linkage=@(LINKAGE) --rpath="${ALL_LIBDIRS}" $(ROOT)/Sawyer/libsawyer
 
 public_header = $(ROOT)/tup-scripts/generate-install-rules --language=c++ --output=include/Sawyer
 test = $(ROOT)/tup-scripts/generate-test-rules
