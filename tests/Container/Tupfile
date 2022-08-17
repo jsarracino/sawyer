@@ -48,6 +48,9 @@ run $(test) mapUnitTests
 run $(compile_tool) optionalUnitTests.C
 run $(test) optionalUnitTests
 
+run $(compile_tool) resultUnitTests.C
+run $(test) resultUnitTests
+
 run $(compile_tool) setUnitTests.C
 run $(test) setUnitTests
 

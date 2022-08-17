@@ -51,3 +51,6 @@ target_link_libraries(attributeUnitTests sawyer)
 
 add_executable(traceUnitTests traceUnitTests.C)
 target_link_libraries(traceUnitTests sawyer)
+
+add_executable(resultUnitTests resultUnitTests.C)
+target_link_libraries(resultUnitTests sawyer)
