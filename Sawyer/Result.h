@@ -10,6 +10,7 @@
 #include <boost/variant.hpp>
 #include <exception>
 #include <string>
+#include <type_traits>
 
 namespace Sawyer {
 
@@ -20,7 +21,7 @@ public:
     using Value = T;
 
 private:
-    T ok_;
+    Value ok_;
 
 private:
     friend class boost::serialization::access;
@@ -38,7 +39,7 @@ public:
         : ok_(other.ok_) {}
 
     /** Construct from an value. */
-    explicit Ok(const T &ok)
+    explicit Ok(const Value &ok)
         : ok_(ok) {}
 
     /** Assignment.
@@ -48,15 +49,62 @@ public:
         ok_ = other.ok_;
         return *this;
     }
-    Ok& operator=(const T &ok) {
+    Ok& operator=(const Value &ok) {
         ok_ = ok;
         return *this;
     }
     /** @} */
 
     /** Dereference to obtain value. */
-    const T& operator*() const {
+    const Value& operator*() const {
         return ok_;
+    }
+
+    /** Dereference to obtain pointer. */
+    const Value* operator->() const {
+        return &ok_;
+    }
+};
+
+// Specialization for Ok that stores string literals, as in Ok("foo"). These get treated as std::string instead.
+template<size_t N>
+class Ok<char[N]> {
+public:
+    using Value = std::string;
+
+private:
+    std::string ok_;
+
+private:
+    friend class boost::serialization::access;
+
+    template<class S>
+    void serialize(S &s, const unsigned /*version*/) {
+        s & BOOST_SERIALIZATION_NVP(ok_);
+    }
+
+public:
+    Ok() = delete;
+
+    explicit Ok(const Value &s)
+        : ok_(s) {}
+
+    Ok& operator=(const Ok &other) {
+        ok_ = other.ok_;
+        return *this;
+    }
+
+    Ok& operator=(const Value &ok) {
+        ok_ = ok;
+        return *this;
+    }
+
+    const Value& operator*() const {
+        return ok_;
+    }
+
+    const Value* operator->() const {
+        return &ok_;
     }
 };
 
@@ -67,7 +115,7 @@ public:
     using Value = E;
 
 private:
-    E error_;
+    Value error_;
 
 private:
     friend class boost::serialization::access;
@@ -95,23 +143,74 @@ public:
         error_ = other.error_;
         return *this;
     }
-    Error& operator=(const E &error) {
+    Error& operator=(const Value &error) {
         error_ = error;
         return *this;
     }
     /** @} */
 
     /** Dereference to obtain error. */
-    const E& operator*() const {
+    const Value& operator*() const {
         return error_;
+    }
+
+    /** Dereference to obtain pointer to error. */
+    const Value* operator->() const {
+        return &error_;
     }
 };
 
-/** An error string.
- *
- * It is easier to type <code>ErrorString("syntax error")</code> than either <code>Error<std::string>("syntax error")</code> or
- * <code>Error(std::string("syntax error"))</code>. */
-using ErrorString = Error<std::string>;
+// Specialization for Error that stores string literals as in Error("syntax error"). It stores them as std::string instead.
+template<size_t N>
+class Error<char[N]> {
+public:
+    using Value = std::string;
+
+private:
+    std::string error_;
+
+private:
+    friend class boost::serialization::access;
+
+    template<class S>
+    void serialize(S &s, const unsigned /*version*/) {
+        s & BOOST_SERIALIZATION_NVP(error_);
+    }
+
+public:
+    Error() = delete;
+
+    /** Copy constructor. */
+    explicit Error(const Error &other)
+        : error_(other.error_) {}
+
+    /** Construct from a value. */
+    explicit Error(const Value &error)
+        : error_(error) {}
+
+    /** Assignment.
+     *
+     * @{ */
+    Error& operator=(const Error &other) {
+        error_ = other.error_;
+        return *this;
+    }
+    Error& operator=(const Value &error) {
+        error_ = error;
+        return *this;
+    }
+    /** @} */
+
+    /** Dereference to obtain error. */
+    const Value& operator*() const {
+        return error_;
+    }
+
+    /** Dereference to obtain pointer to error. */
+    const Value* operator->() const {
+        return &error_;
+    }
+};
 
 /** Result containing a value or an error. */
 template<class T, class E>
@@ -156,11 +255,25 @@ private:
     BOOST_SERIALIZATION_SPLIT_MEMBER();
 
 public:
-    /*implicit*/ Result(const Ok<T> &ok)
-        : result_(ok) {}
+    template<class U = T>
+    /*implicit*/ Result(const Ok<U> &ok)
+        : result_(Ok(*ok)) {}
 
-    /*implicit*/ Result(const Error<E> &error)
-        : result_(error) {}
+    template<class F = E>
+    /*implicit*/ Result(const Error<F> &error)
+        : result_(Error(*error)) {}
+
+    template<class U = T>
+    Result& operator=(const Ok<U> &ok) {
+        result_ = Ok(*ok);
+        return *this;
+    }
+
+    template<class F = E>
+    Result& operator=(const Error<F> &error) {
+        result_ = Error(*error);
+        return *this;
+    }
 
     /** Returns true if the result is okay.
      *
@@ -237,14 +350,14 @@ public:
 
     /** Returns the value or throws an exception.
      *
-     *  If the result is okay, then its value is returned, otherwise the error is lexically cast to a string which is used to construct an
-     *  exception of the specified type, which is then thrown. */
+     *  If the result is okay, then its value is returned, otherwise either the error is thrown or it is used to construct the
+     *  specified @p Exception which is then thrown. */
     template<class Exception = E>
     const T& orThrow() const {
         if (isOk()) {
             return unwrap();
         } else {
-            throw Exception(boost::lexical_cast<std::string>(*error()));
+            throw Exception(*error());
         }
     }
 
