@@ -14,6 +14,18 @@
 
 namespace Sawyer {
 
+template <class F, class... Args>
+struct is_invocable
+{
+    template <class U>
+    static auto test(U* p) -> decltype((*p)(std::declval<Args>()...), void(), std::true_type());
+    template <class U>
+    static auto test(...) -> decltype(std::false_type());
+
+    static constexpr bool value = decltype(test<F>(0))::value;
+};
+
+
 /** Success value. */
 template<class T>
 class Ok {
@@ -263,16 +275,55 @@ public:
     /*implicit*/ Result(const Error<F> &error)
         : result_(Error(*error)) {}
 
+    /** Assign an @ref Ok value to this result. */
     template<class U = T>
     Result& operator=(const Ok<U> &ok) {
         result_ = Ok(*ok);
         return *this;
     }
 
+    /** Assign an @ref Error value to this result. */
     template<class F = E>
     Result& operator=(const Error<F> &error) {
         result_ = Error(*error);
         return *this;
+    }
+
+    /** Test whether this result has the specified @ref Ok value. */
+    template<class U = T>
+    bool operator==(const Ok<U> &ok) const {
+        return isOk() && *this->ok() == *ok;
+    }
+
+    /** Test whether this result does not have the specified @ref Ok value. */
+    template<class U = T>
+    bool operator!=(const Ok<U> &ok) const {
+        return !(*this == ok);
+    }
+
+    /** Test whether this result has the specified @ref Error value. */
+    template<class F = E>
+    bool operator==(const Error<F> &error) const {
+        return isError() && *this->error() == *error;
+    }
+
+    /** Test whether this result does not have the specified @ref Error value. */
+    template<class F = E>
+    bool operator!=(const Error<F> &error) const {
+        return !(*this == error);
+    }
+
+    /** Test whether this result is equal to the other result. */
+    template<class U, class F>
+    bool operator==(const Result<U, F> &other) const {
+        return ((isOk() && other.isOk() && *ok() == *other.ok()) ||
+                (isError() && other.isError() && *error() == *other.error()));
+    }
+
+    /** Test whether this result is unequal to the other result. */
+    template<class U, class F>
+    bool operator!=(const Result<U, F> &other) const {
+        return !(*this == other);
     }
 
     /** Returns true if the result is okay.
@@ -342,6 +393,32 @@ public:
         return isOk() ? unwrap() : dflt;
     }
 
+    /** Returns the contained @ref Ok value, or calls a function.
+     *
+     *  If this result is okay, then returns this result, otherwise calls the specified function, @p fn, with this
+     *  result's @ref Error value and returns the function's result. */
+    template<class Fn>
+    typename std::enable_if<is_invocable<Fn, ErrorValue>::value, const Result>::type
+    orElse(Fn fn) const {
+        if (isOk()) {
+            return *this;
+        } else {
+            return fn(*error());
+        }
+    }
+
+    /** Returns this value or the other result.
+     *
+     *  If this result is okay then return it, otherwise returns the @p other result. */
+    template<class F>
+    const Result<T, F> orElse(const Result<T, F> &other) const {
+        if (isOk()) {
+            return boost::get<Ok<T>>(result_);
+        } else {
+            return other;
+        }
+    }
+
     /** Returns the okay value or a default constructed value. */
     const T& orDefault() const {
         static T dflt = T();
@@ -371,6 +448,32 @@ public:
         }
     }
 
+    /** Returns the contained @ref Error value, or calls a function.
+     *
+     *  If this result is an error, then it's returned. Otherwise the okay value is passed to the specified function and that
+     *  function's return value is returned. */
+    template<class Fn>
+    typename std::enable_if<is_invocable<Fn, OkValue>::value, const Result>::type
+    andThen(Fn fn) const {
+        if (isOk()) {
+            return fn(*ok());
+        } else {
+            return *this;
+        }
+    }
+
+    /** Returns this error or the other result.
+     *
+     *  If this result is okay, then returns @p other. Otherwise returns the error value of this result. */
+    template<class U>
+    const Result<U, E> andThen(const Result<U, E> &other) const {
+        if (isOk()) {
+            return other;
+        } else {
+            return boost::get<Error<E>>(result_);
+        }
+    }
+
     /** Returns the error value or throws an exception.
      *
      *  If this result is an error, then returns the error, otherwise throws an <code>std::runtime_error</code> with the specified string. */
@@ -387,30 +490,6 @@ public:
      *  If this result is an error, then returns the error, otherwise throws an <code>std::runtime_error</code>. */
     const E& unwrapError() const {
         return expectError("result is not an error");
-    }
-
-    /** Returns this error or the other result.
-     *
-     *  If this result is okay, then returns @p other. Otherwise returns the error value of this result. */
-    template<class U>
-    const Result<U, E> and_(const Result<U, E> &other) const {
-        if (isOk()) {
-            return other;
-        } else {
-            return boost::get<Error<E>>(result_);
-        }
-    }
-
-    /** Returns this value or the other result.
-     *
-     *  If this result is okay then return it, otherwise returns the @p other result. */
-    template<class F>
-    const Result<T, F> or_(const Result<T, F> &other) const {
-        if (isOk()) {
-            return boost::get<Ok<T>>(result_);
-        } else {
-            return other;
-        }
     }
 
     /** Returns true if this result contains the specified okay value. */
