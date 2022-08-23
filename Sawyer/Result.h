@@ -256,11 +256,11 @@ private:
         if (isOk) {
             T ok;
             s >>boost::serialization::make_nvp("ok", ok);
-            result_ = Ok(ok);
+            result_ = OkType(ok);
         } else {
             E error;
             s >>boost::serialization::make_nvp("error", error);
-            result_ = Error(error);
+            result_ = ErrorType(error);
         }
     }
 
@@ -269,23 +269,23 @@ private:
 public:
     template<class U = T>
     /*implicit*/ Result(const Ok<U> &ok)
-        : result_(Ok(*ok)) {}
+        : result_(OkType(*ok)) {}
 
     template<class F = E>
     /*implicit*/ Result(const Error<F> &error)
-        : result_(Error(*error)) {}
+        : result_(ErrorType(*error)) {}
 
     /** Assign an @ref Ok value to this result. */
     template<class U = T>
     Result& operator=(const Ok<U> &ok) {
-        result_ = Ok(*ok);
+        result_ = OkType(*ok);
         return *this;
     }
 
     /** Assign an @ref Error value to this result. */
     template<class F = E>
     Result& operator=(const Error<F> &error) {
-        result_ = Error(*error);
+        result_ = ErrorType(*error);
         return *this;
     }
 
@@ -347,7 +347,7 @@ public:
      *  If this result is okay, then return the result, otherwise return nothing. */
     const Sawyer::Optional<T> ok() const {
         if (isOk()) {
-            return *boost::get<Ok<T>>(result_);
+            return *boost::get<OkType>(result_);
         } else {
             return Sawyer::Nothing();
         }
@@ -360,7 +360,7 @@ public:
         if (isOk()) {
             return Sawyer::Nothing();
         } else {
-            return *boost::get<Error<E>>(result_);
+            return *boost::get<ErrorType>(result_);
         }
     }
 
@@ -369,7 +369,7 @@ public:
      *  If this result is okay, then returns its value, otherwise throws an <code>std::runtime_error</code> with the specified string. */
     const T& expect(const std::string &mesg) const {
         if (isOk()) {
-            return *boost::get<Ok<T>>(result_);
+            return *boost::get<OkType>(result_);
         } else {
             throw std::runtime_error(mesg);
         }
@@ -413,7 +413,7 @@ public:
     template<class F>
     const Result<T, F> orElse(const Result<T, F> &other) const {
         if (isOk()) {
-            return boost::get<Ok<T>>(result_);
+            return boost::get<OkType>(result_);
         } else {
             return other;
         }
@@ -470,7 +470,7 @@ public:
         if (isOk()) {
             return other;
         } else {
-            return boost::get<Error<E>>(result_);
+            return boost::get<ErrorType>(result_);
         }
     }
 
@@ -481,7 +481,7 @@ public:
         if (isOk()) {
             throw std::runtime_error(mesg);
         } else {
-            return *boost::get<Error<E>>(result_);
+            return *boost::get<ErrorType>(result_);
         }
     }
 
@@ -516,10 +516,10 @@ public:
             if (unwrap().isEmpty()) {
                 return Sawyer::Nothing();
             } else {
-                return Ok(*unwrap());
+                return OkType(*unwrap());
             }
         } else {
-            return Error(unwrapError());
+            return ErrorType(unwrapError());
         }
     }
 
@@ -529,10 +529,10 @@ public:
             if (unwrap().isOk()) {
                 return OkValue::OkType(unwrap().unwrap());
             } else {
-                return Error(unwrap().unwrapError());
+                return ErrorType(unwrap().unwrapError());
             }
         } else {
-            return Error(unwrapError());
+            return ErrorType(unwrapError());
         }
     }
 #endif

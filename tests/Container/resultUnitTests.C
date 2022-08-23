@@ -7,14 +7,22 @@
 using namespace Sawyer;
 
 static void test01(const Result<int, std::string> &result) {
+    // The extra template arguments for Ok and Error are because template parameter deduction for constructors first exists in
+    // C++17, but ROSE only requires C++14.
     ASSERT_always_require(result.isOk());
     ASSERT_always_require(result);
     ASSERT_always_require(!result.isError());
     ASSERT_always_require(result.ok());
     ASSERT_always_require(*result.ok() == 5);
+#if __cplusplus >= 201703L
     ASSERT_always_require(result == Ok(5));
     ASSERT_always_require(result != Ok(6));
     ASSERT_always_require(result != Error("foo"));
+#else
+    ASSERT_always_require(result == Ok<int>(5));
+    ASSERT_always_require(result != Ok<int>(6));
+    ASSERT_always_require(result != Error<std::string>("foo"));
+#endif
     ASSERT_always_require(!result.error());
     ASSERT_always_require(result.expect("failed") == 5);
     ASSERT_always_require(result.unwrap() == 5);
@@ -40,31 +48,48 @@ static void test01(const Result<int, std::string> &result) {
     }
 
     long x = 0;
+#if __cplusplus >= 201703L
     Result<long*, std::string> a = Ok(&x);
+#else
+    Result<long*, std::string> a = Ok<long*>(&x);
+#endif
     ASSERT_always_require(result.andThen(a));
     ASSERT_always_require(*result.andThen(a) == &x);
 
+#if __cplusplus >= 201703L
     Result<int, long*> b = Ok(6);
+#else
+    Result<int, long*> b = Ok<int>(6);
+#endif
     ASSERT_always_require(result.orElse(b));
     ASSERT_always_require(*result.orElse(b) == 5);
 
     ASSERT_always_require(result.contains(5L));
     ASSERT_always_require(!result.containsError(""));
 
+#if __cplusplus >= 201703L
     Result<int, std::string> r1 = result.orElse([](const std::string &error) {
             return Error(error + "2");
         });
     ASSERT_always_require(*r1.ok() == 5);
+#else
+#endif
 
+#if __cplusplus >= 201703L
     Result<int, std::string> r2 = result.andThen([](int i) {
             return Ok(i * 2);
         });
     ASSERT_always_require(r2 == Ok(10));
+#else
+#endif
 
+#if __cplusplus >= 201703L
     Result<int, std::string> r3 = result.andThen([](int i) {
             return Error("too small");
         });
     ASSERT_always_require(r3 == Error("too small"));
+#else
+#endif
 }
 
 static void test02(const Result<int, std::string> &result) {
@@ -74,9 +99,15 @@ static void test02(const Result<int, std::string> &result) {
     ASSERT_always_require(!result.ok());
     ASSERT_always_require(result.error());
     ASSERT_always_require(*result.error() == "error");
+#if __cplusplus >= 201703L
     ASSERT_always_require(result != Ok(5));
     ASSERT_always_require(result == Error("error"));
     ASSERT_always_require(result != Error("foo"));
+#else
+    ASSERT_always_require(result != Ok<int>(5));
+    ASSERT_always_require(result == Error<std::string>("error"));
+    ASSERT_always_require(result != Error<std::string>("foo"));
+#endif
 
     try {
         result.expect("foo");
@@ -136,27 +167,41 @@ static void test02(const Result<int, std::string> &result) {
     ASSERT_always_require(result.unwrapError() == std::string("error"));
 
     long x = 0;
+#if __cplusplus >= 201703L
     Result<long*, std::string> a = Ok(&x);
+#else
+    Result<long*, std::string> a = Ok<long*>(&x);
+#endif
     ASSERT_always_require(!result.andThen(a));
     ASSERT_always_require(result.andThen(a).error());
     ASSERT_always_require(result.andThen(a).unwrapError() == std::string("error"));
 
+#if __cplusplus >= 201703L
     Result<int, long*> b = Ok(6);
+#else
+    Result<int, long*> b = Ok<int>(6);
+#endif
     ASSERT_always_require(result.orElse(b));
     ASSERT_always_require(*result.orElse(b) == 6);
 
     ASSERT_always_require(!result.contains(5L));
     ASSERT_always_require(result.containsError("error"));
 
+#if __cplusplus >= 201703L
     Result<int, std::string> r1 = result.orElse([](const std::string &error) {
             return Error(error + "-2");
         });
     ASSERT_always_require(*r1.error() == std::string("error-2"));
+#else
+#endif
 
+#if __cplusplus >= 201703L
     Result<int, std::string> r2 = result.orElse([](const std::string &error) {
             return Ok((int)error.size() * 10);
         });
     ASSERT_always_require(*r2.ok() == 50);
+#else
+#endif
 }
 
 struct LocationError {
@@ -184,8 +229,13 @@ static void test03(const LocationResult &result) {
     ASSERT_always_require(result.orElse("nope") == std::string("ok"));
     ASSERT_always_require(result.orDefault() == std::string("ok"));
     ASSERT_always_require(result.orThrow() == std::string("ok"));
+#if __cplusplus >= 201703L
     ASSERT_always_require(result == Ok("ok"));
     ASSERT_always_require(result != Error(LocationError()));
+#else
+    ASSERT_always_require(result == Ok<std::string>("ok"));
+    ASSERT_always_require(result != Error<LocationError>(LocationError()));
+#endif
 
     try {
         result.expectError("foo");
@@ -202,11 +252,19 @@ static void test03(const LocationResult &result) {
     }
 
     long x = 0;
+#if __cplusplus >= 201703L
     Result<long*, LocationError> a = Ok(&x);
+#else
+    Result<long*, LocationError> a = Ok<long*>(&x);
+#endif
     ASSERT_always_require(result.andThen(a));
     ASSERT_always_require(*result.andThen(a) == &x);
 
+#if __cplusplus >= 201703L
     Result<std::string, long*> b = Ok("yep");
+#else
+    Result<std::string, long*> b = Ok<std::string>("yep");
+#endif
     ASSERT_always_require(result.orElse(b));
     ASSERT_always_require(*result.orElse(b) == std::string("ok"));
 
@@ -221,8 +279,13 @@ static void test04(const LocationResult &result, const LocationError &error) {
     ASSERT_always_require(!result.ok());
     ASSERT_always_require(result.error());
     ASSERT_always_require(*result.error() == error);
+#if __cplusplus >= 201703L
     ASSERT_always_require(result != Ok("foo"));
     ASSERT_always_require(result == Error(error));
+#else
+    ASSERT_always_require(result != Ok<std::string>("foo"));
+    ASSERT_always_require(result == Error<LocationError>(error));
+#endif
 
     try {
         result.expect("foo");
@@ -275,12 +338,20 @@ static void test04(const LocationResult &result, const LocationError &error) {
     ASSERT_always_require(result.unwrapError() == error);
 
     long x = 0;
+#if __cplusplus >= 201703L
     Result<long*, LocationError> a = Ok(&x);
+#else
+    Result<long*, LocationError> a = Ok<long*>(&x);
+#endif
     ASSERT_always_require(!result.andThen(a));
     ASSERT_always_require(result.andThen(a).error());
     ASSERT_always_require(result.andThen(a).unwrapError() == error);
 
+#if __cplusplus >= 201703L
     Result<std::string, long*> b = Ok("hi");
+#else
+    Result<std::string, long*> b = Ok<std::string>("hi");
+#endif
     ASSERT_always_require(result.orElse(b));
     ASSERT_always_require(*result.orElse(b) == std::string("hi"));
 
@@ -292,14 +363,23 @@ static void test04(const LocationResult &result, const LocationError &error) {
 enum class ErrorType { DOMAIN, LIMIT };
 
 Result<double, ErrorType> squareRoot(double x) {
+#if __cplusplus >= 201703L
     if (x < 0) {
         return Error(ErrorType::DOMAIN);
     } else {
         return Ok(sqrt(x));
     }
+#else
+    if (x < 0) {
+        return Error<ErrorType>(ErrorType::DOMAIN);
+    } else {
+        return Ok<double>(sqrt(x));
+    }
+#endif
 }
 
 static void test05() {
+#if __cplusplus >= 201703L
     const Result<double, ErrorType> r1 = Ok(25.0);
     ASSERT_always_require(r1.andThen(squareRoot) == Ok(5.0));
 
@@ -308,23 +388,49 @@ static void test05() {
 
     const Result<double, ErrorType> r3 = Error(ErrorType::LIMIT);
     ASSERT_always_require(r3.andThen(squareRoot) == Error(ErrorType::LIMIT));
+#else
+    const Result<double, ErrorType> r1 = Ok<double>(25.0);
+    ASSERT_always_require(r1.andThen(squareRoot) == Ok<double>(5.0));
+
+    const Result<double, ErrorType> r2 = Ok<double>(-1.0);
+    ASSERT_always_require(r2.andThen(squareRoot) == Error<ErrorType>(ErrorType::DOMAIN));
+
+    const Result<double, ErrorType> r3 = Error<ErrorType>(ErrorType::LIMIT);
+    ASSERT_always_require(r3.andThen(squareRoot) == Error<ErrorType>(ErrorType::LIMIT));
+#endif
 }
 
 int main() {
+#if __cplusplus >= 201703L
     Result<int, std::string> result = Ok(5);
+#else
+    Result<int, std::string> result = Ok<int>(5);
+#endif
     test01(result);
 
+#if __cplusplus >= 201703L
     result = Error("error");
+#else
+    result = Error<std::string>("error");
+#endif
     test02(result);
 
+#if __cplusplus >= 201703L
     LocationResult result2 = Ok("ok");
+#else
+    LocationResult result2 = Ok<std::string>("ok");
+#endif
     test03(result2);
 
     LocationError locErr;
     locErr.mesg = "an error";
     locErr.fileName = "a file";
     locErr.line = 123;
+#if __cplusplus >= 201703L
     result2 = Error(locErr);
+#else
+    result2 = Error<LocationError>(locErr);
+#endif
     test04(result2, locErr);
 
     test05();
