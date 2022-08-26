@@ -360,6 +360,7 @@ static void test04(const LocationResult &result, const LocationError &error) {
     ASSERT_always_require(result.error()->line == 123);
 }
 
+#undef DOMAIN
 enum class ErrorType { DOMAIN, LIMIT };
 
 Result<double, ErrorType> squareRoot(double x) {
