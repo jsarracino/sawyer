@@ -8,3 +8,6 @@ run $(test) basicTest2
 
 run $(compile_tool) geometryUnitTests.C
 run $(test) geometryUnitTests
+
+run $(compile_tool) parseUnitTests.C
+run $(test) parseUnitTests

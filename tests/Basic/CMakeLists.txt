@@ -6,3 +6,6 @@ target_link_libraries(basicTest2 sawyer)
 
 add_executable(geometryUnitTests geometryUnitTests.C)
 target_link_libraries(geometryUnitTests sawyer)
+
+add_executable(parseUnitTests parseUnitTests.C)
+target_link_libraries(parseUnitTests sawyer)
