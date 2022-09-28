@@ -44,6 +44,9 @@ summary:
 
 One commonly also needs
 "-DBOOST_ROOT=/the/boost/installation/directory", and
+"-DSQLITE_ROOT=/the/sqlite/installation/directory", and
+"-DLIBPQ_ROOT=/the/postgresql/installation/directory", and
+"-DLIBPQXX_ROOT=/the/libpqxx/installation/directory", and
 "-DCMAKE_BUILD_TYPE=Debug" is useful during development.
 
 If you have Spock installed, you don't need to download or compile boost yourself. Just give these commands:

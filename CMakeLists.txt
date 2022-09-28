@@ -82,6 +82,36 @@ else()
   message(STATUS "Using boost::thread:        no")
 endif()
 
+# SQLite
+if("${SQLITE_ROOT}" STREQUAL "")
+  message(STATUS "Using SQLite:               no")
+else()
+  message(STATUS "Using SQLite:               ${SQLITE_ROOT}")
+  include_directories("${SQLITE_ROOT}/include")
+  link_directories("${SQLITE_ROOT}/lib")
+  set(Sqlite_LIBRARIES sqlite3)
+endif()
+
+# PostgreSQL
+if("${LIBPQ_ROOT}" STREQUAL "")
+  message(STATUS "Using PostgreSQL:           no")
+else()
+  message(STATUS "Using PostgreSQL:           ${LIBPQ_ROOT}")
+  include_directories("${LIBPQ_ROOT}/include")
+  link_directories("${LIBPQ_ROOT}/lib")
+  set(Postgres_LIBRARIES pq)
+endif()
+
+# Libpqxx
+if("${LIBPQXX_ROOT}" STREQUAL "")
+  message(STATUS "Using libpqxx:              no")
+else()
+  message(STATUS "Using libpqxx:              ${LIBPQXX_ROOT}")
+  include_directories("${LIBPQXX_ROOT}/include")
+  link_directories("${LIBPQXX_ROOT}/lib")
+  set(libpqxx_LIBRARIES pqxx)
+endif()
+
 # Microsoft Visual Studio needs to be told where the boost libraries are located or else you'll get
 # errors like "fatal error LNK1104: cannot open file 'libboost_system-vc90-mt-gd-1_44.lib'" even though cmake was
 # able to find the libraries.
@@ -132,7 +162,7 @@ set(lib_src
   Sawyer/Stopwatch.C
   Sawyer/Synchronization.C)
 add_library(sawyer SHARED ${lib_src})
-target_link_libraries(sawyer ${Boost_LIBRARIES} ${Windows_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+target_link_libraries(sawyer ${Sqlite_LIBRARIES} ${libpqxx_LIBRARIES} ${Postgres_LIBRARIES} ${Boost_LIBRARIES} ${Windows_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
 set_target_properties(sawyer PROPERTIES DEFINE_SYMBOL "SAWYER_DO_EXPORTS")
 
 include_directories(
