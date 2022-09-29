@@ -160,7 +160,8 @@ set(lib_src
   Sawyer/Sawyer.C
   Sawyer/SmallObject.C
   Sawyer/Stopwatch.C
-  Sawyer/Synchronization.C)
+  Sawyer/Synchronization.C
+  Sawyer/Time.C)
 add_library(sawyer SHARED ${lib_src})
 target_link_libraries(sawyer ${Sqlite_LIBRARIES} ${libpqxx_LIBRARIES} ${Postgres_LIBRARIES} ${Boost_LIBRARIES} ${Windows_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
 set_target_properties(sawyer PROPERTIES DEFINE_SYMBOL "SAWYER_DO_EXPORTS")

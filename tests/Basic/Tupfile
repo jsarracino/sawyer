@@ -11,3 +11,6 @@ run $(test) geometryUnitTests
 
 run $(compile_tool) parseUnitTests.C
 run $(test) parseUnitTests
+
+run $(compile_tool) timeUnitTests.C
+run $(test) timeUnitTests
