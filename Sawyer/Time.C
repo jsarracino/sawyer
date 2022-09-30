@@ -63,7 +63,11 @@ Time
 Time::now() {
     time_t now = std::time(nullptr);
     std::tm tm;
+#ifdef BOOST_WINDOWS
+    tm = *gmtime(&now);                                 // not thread safe, but Windows doesn't have gmtime_r.
+#else
     gmtime_r(&now, &tm);
+#endif
 
     Time t;
     t.year_ = 1900 + tm.tm_year;
@@ -72,7 +76,8 @@ Time::now() {
     t.hour_ = tm.tm_hour;
     t.minute_ = tm.tm_min;
     t.second_ = tm.tm_sec;
-
+    t.tz_hour_ = 0;
+    t.tz_minute_ = 0;
     return t;
 }
 

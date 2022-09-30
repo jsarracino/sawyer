@@ -5,6 +5,12 @@
 #include <iostream>
 
 static void
+testNow() {
+    auto now = Sawyer::Time::now();
+    std::cerr <<"tests run at " <<now <<"\n";
+}
+
+static void
 testConstruct() {
     Sawyer::Time t;
     ASSERT_always_require(t.isEmpty());
@@ -512,6 +518,7 @@ testUnix() {
 }
 
 int main() {
+    testNow();
     testConstruct();
     testParseDate();
     testParseTime();
