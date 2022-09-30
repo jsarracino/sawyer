@@ -5,6 +5,7 @@
 #include <Sawyer/Result.h>
 
 #include <ctime>
+#include <ostream>
 
 namespace Sawyer {
 
@@ -177,6 +178,8 @@ public:
      *  specific time. If no timezone is present, then the return value is local time. */
     Result<time_t, std::string> toUnix() const;
 };
+
+std::ostream& operator<<(std::ostream&, const Time&);
 
 } // namespace
 #endif

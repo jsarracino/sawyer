@@ -7,9 +7,6 @@
 #include <regex>
 #include <type_traits>
 
-// DEBUGGING
-#include <iostream>
-
 namespace Sawyer {
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -81,6 +78,10 @@ Time::now() {
 
 Result<Time, std::string>
 Time::parse(const std::string &origStr) {
+    // No template parameter deduction in constructors before C++17, so make aliases
+    using Error = Sawyer::Error<std::string>;
+    using Ok = Sawyer::Ok<Time>;
+
     Time t;
     std::smatch found;
     std::string str = origStr;
@@ -340,6 +341,10 @@ Time::lowerBound() const {
 
 Result<Time, std::string>
 Time::upperBound() const {
+    // No template parameter deduction in constructors before C++17, so make aliases
+    using Error = Sawyer::Error<std::string>;
+    using Ok = Sawyer::Ok<Time>;
+
     Time t;
 
     // Update the time part if present.
@@ -501,6 +506,10 @@ Time::toString() const {
 
 Result<time_t, std::string>
 Time::toUnix() const {
+    // No template parameter deduction in constructors before C++17, so make aliases
+    using Error = Sawyer::Error<std::string>;
+    using Ok = Sawyer::Ok<time_t>;
+
     if (!hasSpecificTime())
         return Error("cannot convert non-specific time to time_t");
     if (*year_ < 1970)
@@ -524,6 +533,12 @@ Time::toUnix() const {
     if (t > std::numeric_limits<time_t>::max())
         return Error("time point is not representable as a time_t value");
     return Ok((time_t)t);
+}
+
+std::ostream&
+operator<<(std::ostream &out, const Time &t) {
+    out <<t.toString();
+    return out;
 }
 
 } // namespace
