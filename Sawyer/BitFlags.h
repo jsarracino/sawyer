@@ -280,7 +280,6 @@ public:
      *  The functor is called with one argument each time. */
     template<class F>
     void each(const F &functor) const {
-        Vector leftovers;
         for (Enum e: split())
             functor(e);
     }
