@@ -21,7 +21,7 @@ isLeapYear(unsigned year) {
 
 static unsigned
 daysInMonth(unsigned year, unsigned month) {
-    ASSERT_require(year <= 9999);
+    // Assume this formula is even correct for years before 1583 and after 9999.
     ASSERT_require(month >= 1 && month <= 12);
     if (2 == month) {
         return isLeapYear(year) ? 29 : 28;
@@ -39,7 +39,7 @@ daysInMonth(unsigned year, unsigned month) {
 //    Absent True   zero     True
 template<class T>
 static std::pair<T, bool>
-increment(const Sawyer::Optional<T> &value, const T maxValue, T base, bool carryIn) {
+increment(const Optional<T> &value, const T maxValue, T base, bool carryIn) {
     if (value) {
         if (carryIn) {
             const T next = *value >= maxValue ? base : *value + T{1};
@@ -226,7 +226,7 @@ Time::parse(const std::string &origStr) {
             ASSERT_require(s.size() == 3 || s.size() == 6);
             t.tz_hour_ = *Sawyer::parse<int>(s.substr(0, 3));
             if (s.size() >= 6)
-                t.tz_minute_ = *Sawyer::parse<int>(s.substr(4, 2)) * (*t.tz_hour_ < 0 ? -1 : 1);
+                t.tz_minute_ = *Sawyer::parse<int>(s.substr(0, 1) + s.substr(4, 2));
             if ('-' == s[0] && 0 == *t.tz_hour_ && 0 == t.tz_minute_.orElse(0))
                 return Error("timezone cannot be \"" + s + "\"");
 
@@ -241,7 +241,7 @@ Time::parse(const std::string &origStr) {
                 const std::string s = found.str(1);
                 ASSERT_require(s.size() == 5);
                 t.tz_hour_ = *Sawyer::parse<int>(s.substr(0, 3));
-                t.tz_minute_ = *Sawyer::parse<int>(s.substr(3, 2)) * (*t.tz_hour_ < 0 ? -1 : 1);
+                t.tz_minute_ = *Sawyer::parse<int>(s.substr(0, 1) + s.substr(3, 2));
                 if ("-0000" == s)
                     return Error("timezone cannot be \"-0000\"");
             } else {
@@ -427,44 +427,167 @@ Time::noZone() const {
     return t;
 }
 
-const Sawyer::Optional<unsigned>&
+const Optional<unsigned>&
 Time::year() const {
     return year_;
 }
 
-const Sawyer::Optional<unsigned>&
+const Optional<unsigned>&
 Time::month() const {
     return month_;
 }
 
-const Sawyer::Optional<unsigned>&
+const Optional<unsigned>&
 Time::day() const {
     return day_;
 }
 
-const Sawyer::Optional<unsigned>&
+const Optional<unsigned>&
 Time::hour() const {
     return hour_;
 }
 
-const Sawyer::Optional<unsigned>&
+const Optional<unsigned>&
 Time::minute() const {
     return minute_;
 }
 
-const Sawyer::Optional<unsigned>&
+const Optional<unsigned>&
 Time::second() const {
     return second_;
 }
 
-const Sawyer::Optional<int>&
+const Optional<int>&
 Time::timeZoneHour() const {
     return tz_hour_;
 }
 
-const Sawyer::Optional<int>&
+const Optional<int>&
 Time::timeZoneMinute() const {
     return tz_minute_;
+}
+
+// Normalize seconds by borrowing from or carrying to the minutes
+void
+Time::normalizeSecond() {
+    if (second_ && (int)*second_ < 0) {
+        ASSERT_require(minute_);
+        minute_ = (int)*minute_ + (int)*second_ / 60 - 1;
+        second_ = 60 + (int)*second_ % 60;
+    } else if (second_.orElse(0) >= 60) {
+        ASSERT_require(minute_);
+        minute_ = *minute_ + *second_ / 60;
+        second_ = *second_ % 60;
+    }
+    ASSERT_require(second_.orElse(0) < 60);
+}
+
+// Normalize minutes by borrowing from or carrying to the hours
+void
+Time::normalizeMinute() {
+    if (minute_ && (int)*minute_ < 0) {
+        ASSERT_require(hour_);
+        hour_ = (int)*hour_ + (int)*minute_ / 60 - 1;
+        minute_ = 60 + (int)*minute_ % 60;
+    } else if (minute_.orElse(0) >= 60) {
+        ASSERT_require(hour_);
+        hour_ = *hour_ + *minute_ / 60;
+        minute_ = *minute_ % 60;
+    }
+    ASSERT_require(minute_.orElse(0) < 60);
+}
+
+// Normalize hours by borrowing from or carrying to the day (if any)
+void
+Time::normalizeHour() {
+    if (hour_ && (int)*hour_ < 0) {
+        if (day_)
+            day_ = (int)*day_ + (int)*hour_ / 24 - 1;
+        hour_ = 24 + (int)*hour_ % 24;
+    } else if (hour_.orElse(0) >= 24) {
+        if (day_)
+            day_ = *day_ + *hour_ / 24;
+        hour_ = *hour_ % 24;
+    }
+    ASSERT_require(hour_.orElse(0) < 24);
+}
+
+// Normalize the month by borrowing from or carrying to the year.
+void
+Time::normalizeMonth() {
+    if (month_ && (int)*month_ < 1) {
+        const int zmonth = (int)*month_ - 1;
+        ASSERT_require(year_);
+        year_ = (int)*year_ + zmonth / 12 - 1;
+        month_ = 13 + zmonth % 12;
+    } else if (month_.orElse(0) > 12) {
+        const int zmonth = *month_ - 1;
+        ASSERT_require(year_);
+        year_ = *year_ + zmonth / 12;
+        month_ = zmonth % 12 + 1;
+    }
+    ASSERT_require(month_.orElse(1) >= 1 && month_.orElse(1) <= 12);
+}
+
+// Normalize date and/or time. After calling this, the year might be out of range and should be checked.
+void
+Time::normalize() {
+    normalizeSecond();
+    normalizeMinute();
+    normalizeHour();
+
+    // Normalize days
+    if (day_) {
+        ASSERT_require(month_);
+        ASSERT_require(year_);
+
+        // Normalize negative days by borrowing from the month
+        while ((int)*day_ < 1) {
+            month_ = *month_ - 1;
+            normalizeMonth();
+            day_ = *day_ + daysInMonth(*year_, *month_);
+        }
+
+        // Normalize overflow days by carrying to the month
+        while (true) {
+            normalizeMonth();
+            const unsigned dim = daysInMonth(*year_, *month_);
+            if (*day_ > dim) {
+                day_ = *day_ - dim;
+                month_ = *month_ + 1;
+            } else {
+                break;
+            }
+        }
+    } else {
+        normalizeMonth();
+    }
+}
+
+Result<Time, std::string>
+Time::toZulu() const {
+    using Ok = Sawyer::Ok<Time>;
+    using Error = Sawyer::Error<std::string>;
+
+    if (!hasTime() || !hasZone())
+        return Ok(*this);
+
+    Time result = *this;
+    result.tz_minute_ = tz_minute_.andThen(0);
+    result.tz_hour_ = 0;
+
+    if (result.minute_ && tz_minute_)
+        result.minute_ = (int)*result.minute_ - *tz_minute_;
+    if (result.hour_ && tz_hour_)
+        result.hour_ = (int)*result.hour_ - *tz_hour_;
+
+    result.normalize();
+    if (result.year_.orElse(1583) < 1583)
+        return Error("cannot represent years before 1583");
+    if (result.year_.orElse(9999) > 9999)
+        return Error("cannot represent years after 9999");
+
+    return Ok(result);
 }
 
 std::string
@@ -501,10 +624,19 @@ Time::toString() const {
         s += (boost::format(":%02d") % *second_).str();
 
     // Zone
-    if (tz_hour_)
-        s += (boost::format("%+03d") % *tz_hour_).str();
-    if (tz_minute_)
-        s += (boost::format(":%02d") % (*tz_minute_ < 0 ? -*tz_minute_ : *tz_minute_)).str();
+    if (tz_hour_) {
+        if (0 == *tz_hour_ && tz_minute_ && 0 == *tz_minute_) {
+            s += "Z";
+        } else {
+            if (0 == *tz_hour_) {
+                s += tz_minute_ && *tz_minute_ < 0 ? "-00" : "+00";
+            } else {
+                s += (boost::format("%+03d") % *tz_hour_).str();
+            }
+            if (tz_minute_)
+                s += (boost::format(":%02d") % (*tz_minute_ < 0 ? -*tz_minute_ : *tz_minute_)).str();
+        }
+    }
 
     return s;
 }
