@@ -710,6 +710,70 @@ Time::operator!=(const Time &other) const {
              a.tz_minute_.isEqual(b.tz_minute_));
 }
 
+bool
+Time::operator<(const Time &other) const {
+    const auto za = toZulu();
+    const auto zb = other.toZulu();
+    if (za.isError() && zb.isError()) {
+        return za.unwrapError() < zb.unwrapError();
+    } else if (za.isError() || zb.isError()) {
+        return za.isError();
+    }
+
+    const Time a = *za;
+    const Time b = *zb;
+
+    if (a.year_.isEqual(b.year_)) {
+        if (a.month_.isEqual(b.month_)) {
+            if (a.day_.isEqual(b.day_)) {
+                if (a.hour_.isEqual(b.hour_)) {
+                    if (a.minute_.isEqual(b.minute_)) {
+                        if (a.second_.isEqual(b.second_)) {
+                            if (a.tz_hour_.isEqual(b.tz_hour_)) {
+                                if (a.tz_minute_.isEqual(b.tz_minute_)) {
+                                    return false;       // they're equal!
+                                } else if (!a.tz_minute_ || !b.tz_minute_) {
+                                    return !a.tz_minute_;
+                                } else {
+                                    return *a.tz_minute_ < *b.tz_minute_;
+                                }
+                            } else if (!a.tz_hour_ || !b.tz_hour_) {
+                                return !a.tz_hour_;
+                            } else {
+                                return *a.tz_hour_ < *b.tz_hour_;
+                            }
+                        } else if (!a.second_ || !b.second_) {
+                            return !a.second_;
+                        } else {
+                            return *a.second_ < *b.second_;
+                        }
+                    } else if (!a.minute_ || !b.minute_) {
+                        return !a.minute_;
+                    } else {
+                        return *a.minute_ < *b.minute_;
+                    }
+                } else if (!a.hour_ || !b.hour_) {
+                    return !a.hour_;
+                } else {
+                    return *a.hour_ < *b.hour_;
+                }
+            } else if (!a.day_ || !b.day_) {
+                return !a.day_;
+            } else {
+                return *a.day_ < *b.day_;
+            }
+        } else if (!a.month_ || !b.month_) {
+            return !a.month_;
+        } else {
+            return *a.month_ < *b.month_;
+        }
+    } else if (!a.year_ || !b.year_) {
+        return !a.year_;
+    } else {
+        return *a.year_ < *b.year_;
+    }
+}
+
 std::ostream&
 operator<<(std::ostream &out, const Time &t) {
     out <<t.toString();

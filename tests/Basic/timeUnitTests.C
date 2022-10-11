@@ -740,6 +740,63 @@ testEquality() {
 }
 
 
+static void
+lt(const std::string &lhs, const std::string &rhs, bool ansLt, bool ansGt) {
+    auto a = Sawyer::Time::parse(lhs).expect("cannot parse lhs " + lhs);
+    auto b = Sawyer::Time::parse(rhs).expect("cannot parse rhs " + rhs);
+    bool lt = a < b;
+    bool gt = b < a;
+    ASSERT_always_require2(lt == ansLt,
+                           "lhs input:   " + lhs + "\n"
+                           "  lhs parsed:  " + a.toString() + "\n"
+                           "  rhs input:   " + rhs + "\n"
+                           "  rhs parsed:  " + b.toString() + "\n"
+                           "  tested lt:   " + (lt ? "true" : "false") + "\n"
+                           "  expected lt: " + (ansLt ? "true" : "false"));
+    ASSERT_always_require2(gt == ansGt,
+                           "lhs input:   " + lhs + "\n"
+                           "  lhs parsed:  " + a.toString() + "\n"
+                           "  rhs input:   " + rhs + "\n"
+                           "  rhs parsed:  " + b.toString() + "\n"
+                           "  tested gt:   " + (gt ? "true" : "false") + "\n"
+                           "  expected gt: " + (ansGt ? "true" : "false"));
+}
+
+static void
+testLessThan() {
+    // equal
+    lt("2022-10-11 11:49:58Z", "2022-10-11 11:49:58Z", false, false);
+    lt("2022-10-11 11:49:58", "2022-10-11 11:49:58", false, false); // no zones
+    lt("2022-10-11 11:49Z", "2022-10-11 11:49Z", false, false);     // no seconds
+    lt("2022-10-11 T11Z", "2022-10-11 T11Z", false, false);         // no seconds or minutes
+    lt("2022-10-11", "2022-10-11", false, false);                   // no time
+    lt("2022-10 11:49:58Z", "2022-10 11:49:58Z", false, false);     // no day
+    lt("2022 11:49:58Z", "2022 11:49:58Z", false, false);           // no day or month
+    lt("11:49:58Z", "11:49:58Z", false, false);                     // no date
+    lt("12:00-0400", "16:00Z", false, false);                       // different timezones
+
+    // One item changed
+    lt("2022-10-11 11:49:58Z", "2022-10-11 11:49:59Z", true, false); // second
+    lt("2022-10-11 11:49:58Z", "2022-10-11 11:50:58Z", true, false); // minute
+    lt("2022-10-11 11:49:58Z", "2022-10-11 12:49:58Z", true, false); // hour
+    lt("2022-10-11 11:49:58Z", "2022-10-12 11:49:58Z", true, false); // day
+    lt("2022-10-11 11:49:58Z", "2022-11-11 11:49:58Z", true, false); // month
+    lt("2022-10-11 11:49:58Z", "2023-10-11 11:49:58Z", true, false); // year
+
+    // Item missing
+    lt("2022-10-11 11:49:58-04", "2022-10-11 11:49:58-04:00", true, false); // timezone minute
+    lt("2022-10-11 11:49:58", "2022-10-11 11:49:58Z", true, false);      // timezone
+    lt("2022-10-11 11:49Z", "2022-10-11 11:49:58Z", true, false);        // seconds
+    lt("2022-10-11 T11Z", "2022-10-11 11:49:58Z", true, false);          // minutes and seconds
+    lt("2022-10-11Z", "2022-10-11 11:49:58Z", true, false);              // time
+    lt("2022-10 11:49:58Z", "2022-10-11 11:49:58Z", true, false);        // day
+    lt("2022 11:49:58Z", "2022-10-11 11:49:58Z", true, false);           // month
+    lt("11:49:58Z", "2022-10-11 11:49:58Z", true, false);                // date
+
+    // Time zone conversion
+    lt("2022-10-11 12:00+0400", "2022-10-11 11:00Z", true, false);
+}
+
 int main() {
     testNow();
     testConstruct();
@@ -754,4 +811,5 @@ int main() {
     testTimezoneConversion();
     testUnix();
     testEquality();
+    testLessThan();
 }

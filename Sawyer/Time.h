@@ -204,6 +204,17 @@ public:
     bool operator!=(const Time&) const;
     /** @} */
 
+    /** Compare two times for less-than.
+     *
+     *  Time @p a is less than time @p b if @p a occurs earlier than @p b after normalizing both to Zulu.  If the conversion to
+     *  Zulu fails for both times, then the result is the comparison of the error strings. If only one of the times fails to
+     *  convert, then that one is less than the other. If a field is missing from both times, then that field is considered to
+     *  be equal (e.g., if both times are missing the month). If the field is missing from @p a but not @p b, then @p a is less
+     *  than @p b. The fields are compared in order from year to second, followed by the timezone hour and then timezone minute
+     *  (although the timezone comparisons are only based on their presence or absense since they've both been converted to
+     *  Zulu). */
+    bool operator<(const Time&) const;
+
 private:
     // Normalization functions
     void normalizeSecond();
