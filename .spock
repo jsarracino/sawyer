@@ -1,3 +1,5 @@
 boost-nopy
 tup
 sqlite
+libpq
+libpqxx
