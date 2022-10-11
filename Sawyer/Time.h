@@ -191,6 +191,19 @@ public:
      *  specific time. If no timezone is present, then the return value is local time. */
     Result<time_t, std::string> toUnix() const;
 
+    /** Compare two times for equality or inequality.
+     *
+     *  Two times are equal if, after converting them both to the same timezone, they have the same year, month, day, hour,
+     *  minute, and second for all such fields where either or both times have a value. Fields are considered equal if neither
+     *  time has a value for that field.
+     *
+     *  If either or both times fail to convert to Zulu due to overflows, then they are neither equal nor unequal.
+     *
+     * @{ */
+    bool operator==(const Time&) const;
+    bool operator!=(const Time&) const;
+    /** @} */
+
 private:
     // Normalization functions
     void normalizeSecond();

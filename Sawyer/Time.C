@@ -672,6 +672,44 @@ Time::toUnix() const {
     return Ok((time_t)t);
 }
 
+bool
+Time::operator==(const Time &other) const {
+    const auto za = toZulu();
+    const auto zb = other.toZulu();
+    if (za.isError() || zb.isError())
+        return false;
+    const Time a = *za;
+    const Time b = *zb;
+
+    return a.year_.isEqual(b.year_) &&
+        a.month_.isEqual(b.month_) &&
+        a.day_.isEqual(b.day_) &&
+        a.hour_.isEqual(b.hour_) &&
+        a.minute_.isEqual(b.minute_) &&
+        a.second_.isEqual(b.second_) &&
+        a.tz_hour_.isEqual(b.tz_hour_) &&
+        a.tz_minute_.isEqual(b.tz_minute_);
+}
+
+bool
+Time::operator!=(const Time &other) const {
+    const auto za = toZulu();
+    const auto zb = other.toZulu();
+    if (za.isError() || zb.isError())
+        return false;
+    const Time a = *za;
+    const Time b = *zb;
+
+    return !(a.year_.isEqual(b.year_) &&
+             a.month_.isEqual(b.month_) &&
+             a.day_.isEqual(b.day_) &&
+             a.hour_.isEqual(b.hour_) &&
+             a.minute_.isEqual(b.minute_) &&
+             a.second_.isEqual(b.second_) &&
+             a.tz_hour_.isEqual(b.tz_hour_) &&
+             a.tz_minute_.isEqual(b.tz_minute_));
+}
+
 std::ostream&
 operator<<(std::ostream &out, const Time &t) {
     out <<t.toString();
