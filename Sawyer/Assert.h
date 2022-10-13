@@ -2,6 +2,8 @@
 #define Sawyer_Assert_H
 
 #include <Sawyer/Sawyer.h>
+
+#include <boost/config.hpp>
 #include <string>
 #ifdef __clang_analyzer__
 #include <cassert>
@@ -88,7 +90,9 @@ namespace Assert {
 /** Cause immediate failure.  This function is the low-level function called by most of the other Sawyer::Assert macros
  *  when an assertion fails. Calls to this function do not return. */
 SAWYER_EXPORT
+#ifndef BOOST_WINDOWS
 [[noreturn]]
+#endif
 void fail(const char *mesg, const char *expr, const std::string &note,
           const char *filename, unsigned linenum, const char *funcname);
 
