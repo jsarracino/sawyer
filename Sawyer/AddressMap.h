@@ -570,7 +570,7 @@ public:
 
     Segment split(const Sawyer::Container::Interval<Address> &interval, Segment &segment, Address splitPoint) {
         ASSERT_forbid(interval.isEmpty());
-        ASSERT_require(interval.isContaining(splitPoint));
+        ASSERT_require(interval.contains(splitPoint));
         Segment right = segment;
         right.offset(segment.offset() + splitPoint - interval.least());
         return right;
@@ -578,7 +578,7 @@ public:
 
     void truncate(const Sawyer::Container::Interval<Address> &interval, Segment &/*segment*/, Address splitPoint) {
         ASSERT_always_forbid(interval.isEmpty()); // so interval is always used
-        ASSERT_always_require(interval.isContaining(splitPoint)); // ditto for splitPoint
+        ASSERT_always_require(interval.contains(splitPoint)); // ditto for splitPoint
     }
 };
 

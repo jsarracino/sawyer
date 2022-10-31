@@ -534,8 +534,10 @@ public:
     /** Test one box contains the other.
      *
      *  Returns true if @p this box contains the @p other box. All boxes contain an empty box; an empty box contains only
-     *  another empty box. */
-    bool isContaining(const EuclideanBox &other) const {
+     *  another empty box.
+     *
+     * @{ */
+    bool contains(const EuclideanBox &other) const {
         if (isEmpty())
             return other.isEmpty();
         if (other.isEmpty())
@@ -546,7 +548,11 @@ public:
         }
         return true;
     }
-    
+    bool isContaining(const EuclideanBox &other) const {
+        return contains(other);
+    }
+    /** @} */
+
     /** Construct a new box from the intersection of boxes.
      *
      *  Returns a new box which is the intersection of @p this box and the @p other box.  If the boxes don't intersect then it

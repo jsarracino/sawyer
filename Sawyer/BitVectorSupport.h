@@ -462,7 +462,7 @@ struct SwapBits {
 template<class Word>
 void swap(Word *vec1, const BitRange &range1, Word *vec2, const BitRange &range2) {
     SwapBits<Word> visitor;
-    ASSERT_require(vec1!=vec2 || !range1.isOverlapping(range2));
+    ASSERT_require(vec1!=vec2 || !range1.overlaps(range2));
     traverse(visitor, vec1, range1, vec2, range2, LowToHigh());
 }
 
