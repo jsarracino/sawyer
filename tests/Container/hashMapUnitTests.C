@@ -3,6 +3,7 @@
 #include <boost/foreach.hpp>
 #include <iostream>
 #include <Sawyer/Assert.h>
+#include <map>
 #include <string>
 
 template<class Key, class Value>
