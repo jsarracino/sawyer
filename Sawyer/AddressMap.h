@@ -1551,7 +1551,8 @@ public:
                 Address maxAddr = minAddr + (nValues-1);
                 if ((nValues <= interval.size() || 0==interval.size()/*overflow*/) &&
                     minAddr >= interval.least()/*overflow*/ && maxAddr >= interval.least()/*overflow*/ &&
-                    maxAddr <= interval.greatest()) {
+                    maxAddr <= interval.greatest() &&
+                    maxAddr <= restriction.greatest()) {
                     return minAddr;
                 }
                 if (interval.greatest() == whole.greatest())
@@ -1571,7 +1572,8 @@ public:
             maxAddr = minAddr + (nValues-1);
             if ((nValues <= interval.size() || 0==interval.size()/*overflow*/) &&
                 minAddr >= interval.least()/*overflow*/ && maxAddr >= interval.least()/*overflow*/ &&
-                maxAddr <= interval.greatest()) {
+                maxAddr <= interval.greatest() &&
+                minAddr >= restriction.least()) {
                 return minAddr;
             }
             if (interval.least() == whole.least())
