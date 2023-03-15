@@ -140,6 +140,9 @@ public:
      *  Returns true if the file is empty without trying to read any data. */
     bool isEmpty() const;
 
+    /** Returns part of the buffer as a string. */
+    std::string contentAsString(size_t begin, size_t end) const;
+
 private:
     void cacheLines(size_t nLines) const;
     void cacheCharacters(size_t nCharacters) const;
