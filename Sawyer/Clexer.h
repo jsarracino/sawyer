@@ -33,19 +33,24 @@ class Token {
     friend class TokenStream;
 
     TokenType type_;
+    size_t prior_;                                      // start of skipped stuff before token
     size_t begin_;
     size_t end_;
 
 public:
-    Token(): type_(TOK_EOF), begin_(0), end_(0) {} // for std::vector, otherwise not used
+    Token(): type_(TOK_EOF), prior_(0), begin_(0), end_(0) {} // for std::vector, otherwise not used
     
-    Token(TokenType type, size_t begin, size_t end)
-        : type_(type), begin_(begin), end_(end) {
+    Token(TokenType type, size_t prior, size_t begin, size_t end)
+        : type_(type), prior_(prior), begin_(begin), end_(end) {
         ASSERT_require(end >= begin);
     }
 
     TokenType type() const {
         return type_;
+    }
+
+    size_t prior() const {
+        return prior_;
     }
 
     size_t begin() const {
