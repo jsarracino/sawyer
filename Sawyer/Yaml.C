@@ -29,8 +29,9 @@
 * SOFTWARE.
 *
 */
-#include <sage3basic.h>
 #include <Sawyer/Yaml.h>
+
+#include <Sawyer/Assert.h>
 
 #include <memory>
 #include <fstream>

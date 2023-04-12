@@ -446,6 +446,12 @@ public:
     Node& operator=(const Node& node);
     Node& operator=(const std::string& value);
     Node& operator=(const char* value);
+
+    template<class T>
+    Node& operator=(const T& value) {
+        (*this) = boost::lexical_cast<std::string>(value);
+        return *this;
+    }
     /** @} */
 
     /** Get start iterator.
