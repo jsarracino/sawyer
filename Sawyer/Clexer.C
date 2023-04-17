@@ -114,7 +114,8 @@ TokenStream::emit(std::ostream &out, const std::string &fileName, const Token &b
     std::pair<size_t, size_t> loc4 = content_.location(end.end_);
 
     // Emit "NAME:LINE:COL: MESG" to show the beginning of the locus
-    out <<fileName <<":" <<(loc2.first+1) <<":" <<(loc2.second+1) <<": " <<message <<"\n";
+    if (!message.empty())
+        out <<fileName <<":" <<(loc2.first+1) <<":" <<(loc2.second+1) <<": " <<message <<"\n";
 
     // Emit context matched lines
     for (size_t lineIdx = loc1.first; lineIdx <= loc4.first; ++lineIdx) {
