@@ -5,6 +5,7 @@
 #include <Sawyer/Exception.h>
 
 #include <boost/lexical_cast.hpp>
+#include <boost/range/adaptor/reversed.hpp>
 #include <memory>
 #include <string>
 #include <vector>
@@ -111,6 +112,7 @@ public:
 
 public:
     template<class T> class Edge;
+    template<class T> class EdgeVector;
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // Errors and exceptions
@@ -220,23 +222,23 @@ public:
     };
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    // Parent-to-child edges
+    // Base class for parent-to-child edges
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 private:
+    enum class Link { NO, YES };
 
     // Used internally as the non-template abstract base class for all parent-to-child edge types.
     class EdgeBase {
-    private:
+    public:
         // Previous edge in this object, including edges defined in base classes. Edges in this linked list are ordered so that
         // if edge A was initialized before edge B, then edge A will appear earlier in the list. The "prev" pointers in the list
         // point backward through the list.
         EdgeBase *prev;
 
-    public:
         virtual ~EdgeBase() {}
-
         EdgeBase() = delete;
-
+        EdgeBase(const EdgeBase&) = delete;
+        EdgeBase& operator=(const EdgeBase&) = delete;
         explicit EdgeBase(EdgeBase *prev)
             : prev(prev) {}
 
@@ -244,7 +246,7 @@ private:
         virtual size_t size() const = 0;
 
         // Return the i'th pointer. The argument is expected to be in the domain.
-        virtual Vertex* at(size_t i) const = 0;
+        virtual Vertex* pointer(size_t i) const = 0;
 
         // Traverse through all the non-null children of appropriate type pointed to by all edges in the order that the edges were
         // initialized. The visitor is invoked with two arguments: a non-null shared pointer to the child, and an indication of
@@ -257,7 +259,7 @@ private:
                     return retval;
             }
             for (size_t i = 0; i < size(); ++i) {
-                if (auto child = at(i)) {
+                if (auto child = pointer(i)) {
                     if (auto retval = child->template traverse<T>(visitor))
                         return retval;
                 }
@@ -266,6 +268,9 @@ private:
         }
     };
 
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // 1:1 parent-to-child edge
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 public:
     /** A parent-to-child edge in a tree.
      *
@@ -306,19 +311,14 @@ public:
         using Child = T;
 
         /** Type of pointer to the child. */
-        using ChildPtr = std::shared_ptr<T>;
+        using ChildPtr = std::shared_ptr<Child>;
 
     private:
         UserBase &parent_;                              // required parent owning this child edge
         ChildPtr child_;                                // optional child to which this edge points
 
     public:
-        // No default constructor and not copyable.
-        Edge() = delete;
-        Edge(const Edge&) = delete;
-        Edge& operator=(const Edge&) = delete;
-
-    public:
+        /** Destructor clears child's parent. */
         ~Edge();
 
         /** Construct a child edge that belongs to the specified parent.
@@ -335,6 +335,12 @@ public:
         Edge(UserBase &parent, const ChildPtr &child);
         /** @} */
 
+    private:
+        template<class U> friend class EdgeVector;
+        // Used internally to initialize an edge without linking it to prior edges
+        Edge(Link, UserBase &parent, const ChildPtr &child);
+
+    public:
         /** Return the child if there is one, else null.
          *
          * @{ */
@@ -385,9 +391,262 @@ public:
             return 1;
         }
 
-        Vertex* at(size_t i) const override {
+        Vertex* pointer(size_t i) const override {
             ASSERT_always_require(0 == i);
             return child_.get();
+        }
+    };
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // 1:N parent-to-child edge
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+public:
+    /** A 1:N tree edge from parent to children.
+     *
+     *  This edge type points to a variable number of children and acts like an @c std::vector. */
+    template<class T>
+    class EdgeVector: public EdgeBase {
+    public:
+        /** Type of children being pointed to. */
+        using Child = T;
+
+        /** Type of pointers to children. */
+        using ChildPtr = std::shared_ptr<Child>;
+
+    private:
+        using Vector = std::vector<std::unique_ptr<Edge<Child>>>;
+
+    public:
+        using value_type = Edge<Child>;
+        using size_type = typename Vector::size_type;
+        using difference_type = typename Vector::difference_type;
+        using reference = value_type&;
+        using const_reference = const value_type&;
+
+    public:
+        template<class BaseIterator>
+        class Iterator {
+            BaseIterator baseIterator_;
+
+        public:
+            Iterator() = delete;
+            Iterator(const BaseIterator &baseIterator)
+                : baseIterator_(baseIterator) {}
+
+            Iterator(const Iterator &other)
+                : baseIterator_(other.baseIterator_) {}
+
+            Iterator& operator=(const Iterator &other) {
+                baseIterator_ = other.baseIterator_;
+                return *this;
+            }
+
+            Iterator& operator++() {
+                ++baseIterator_;
+                return *this;
+            }
+
+            Iterator operator++(int) {
+                Iterator temp = *this;
+                ++baseIterator_;
+                return temp;
+            }
+
+            Iterator& operator--() {
+                --baseIterator_;
+                return *this;
+            }
+
+            Iterator operator--(int) {
+                Iterator temp = *this;
+                --baseIterator_;
+                return temp;
+            }
+
+            Iterator& operator+=(difference_type n) {
+                baseIterator_ += n;
+                return *this;
+            }
+
+            Iterator operator+(difference_type n) const {
+                Iterator retval = *this;
+                retval += n;
+                return retval;
+            }
+
+            Iterator& operator-=(difference_type n) {
+                baseIterator_ -= n;
+                return *this;
+            }
+
+            Iterator operator-(difference_type n) const {
+                Iterator retval = *this;
+                retval -= n;
+                return retval;
+            }
+
+            difference_type operator-(const Iterator &other) const {
+                return other.baseIterator_ - baseIterator_;
+            }
+
+            auto& operator*() const {
+                ASSERT_not_null(*baseIterator_);
+                return **baseIterator_;
+            }
+
+            auto& operator->() const {
+                ASSERT_not_null(*baseIterator_);
+                return &**baseIterator_;
+            }
+
+            auto& operator[](difference_type i) const {
+                ASSERT_not_null(baseIterator_[i]);
+                return *baseIterator_[i];
+            }
+
+            bool operator==(const Iterator &other) const {
+                return baseIterator_ == other.baseIterator_;
+            }
+
+            bool operator!=(const Iterator &other) const {
+                return baseIterator_ != other.baseIterator_;
+            }
+
+            bool operator<(const Iterator &other) const {
+                return baseIterator_ < other.baseIterator_;
+            }
+
+            bool operator<=(const Iterator &other) const {
+                return baseIterator_ <= other.baseIterator_;
+            }
+
+            bool operator>(const Iterator &other) const {
+                return baseIterator_ > other.baseIterator_;
+            }
+
+            bool operator>=(const Iterator &other) const {
+                return baseIterator_ >= other.baseIterator_;
+            }
+        };
+
+    public:
+        using iterator = Iterator<typename Vector::iterator>;
+
+    private:
+        UserBase &parent_;                              // required parent owning this child edge
+        Vector edges_;
+
+    public:
+        /** Destructor clears children's parents. */
+        ~EdgeVector() {}
+
+        /** Construct a child edge that belongs to the specified parent.
+         *
+         *  When constructing a class containing a data member of this type (i.e., a tree edge that points to a child of this
+         *  vertex), the data member must be initialized by passing @c *this as the argument.  See the example in this class
+         *  documentation. */
+        explicit EdgeVector(UserBase &parent);
+
+    public:
+        /** Test whether vector is empty.
+         *
+         *  Returns true if this vertex contains no child edges, null or otherwise. */
+        bool empty() const {
+            return edges_.empty();
+        }
+
+        /** Number of child edges.
+         *
+         *  Returns the number of children edges, null or otherwise. */
+        size_t size() const override {
+            return edges_.size();
+        }
+
+        /** Reserve space so the child edge vector can grow without being reallocated. */
+        void reserve(size_t n) {
+            edges_.reserve(n);
+        }
+
+        /** Reserved capacity. */
+        size_t capacity() const {
+            return edges_.capacity();
+        }
+
+        /** Insert a child pointer at the end of this vertex.
+         *
+         *  If the new element is non-null, then it must satisfy all the requirements for inserting a vertex as a child of another
+         *  vertex, and its parent pointer will be adjusted automatically. */
+        void push_back(const ChildPtr& elmt) {
+            auto edge = std::unique_ptr<Edge<Child>>(new Edge<Child>(Link::NO, parent_, elmt));
+            edges_.push_back(std::move(edge));
+        }
+
+        /** Erase a child edge from the end of this vertex.
+         *
+         *  If the edge being erased points to a child, then that child's parent pointer is reset. */
+        void pop_back() {
+            ASSERT_forbid(edges_.empty());
+            edges_.pop_back();
+        }
+
+        /** Return the i'th edge.
+         *
+         * @{ */
+        const Edge<Child>& at(size_t i) const {
+            ASSERT_require(i < edges_.size());
+            return *edges_.at(i);
+        }
+        Edge<Child>& at(size_t i) {
+            ASSERT_require(i < edges_.size());
+            return *edges_.at(i);
+        }
+        const Edge<Child>& operator[](size_t i) const {
+            return at(i);
+        }
+        Edge<Child>& operator[](size_t i) {
+            return at(i);
+        }
+        /** @} */
+
+        /** Return the first edge.
+         *
+         * @{ */
+        const Edge<Child>& front() const {
+            ASSERT_forbid(empty());
+            return at(0);
+        }
+        Edge<Child>& front() {
+            ASSERT_forbid(empty());
+            return at(0);
+        }
+        /** @} */
+
+        /** Return the last edge.
+         *
+         * @{ */
+        const Edge<Child>& back() const {
+            ASSERT_forbid(empty());
+            return at(size() - 1);
+        }
+        Edge<Child>& back() {
+            ASSERT_forbid(empty());
+            return at(size() - 1);
+        }
+        /** @} */
+
+        /** Return an iterator to the first edge. */
+        iterator begin() {
+            return iterator(edges_.begin());
+        }
+
+        /** Return an iterator to one past the last edge. */
+        iterator end() {
+            return iterator(edges_.end());
+        }
+
+    protected:
+        Vertex* pointer(size_t i) const override {
+            return at(i)().get();
         }
     };
 
@@ -476,8 +735,10 @@ public:
             if (auto retval = visitor(vertex, TraversalEvent::ENTER))
                 return retval;
         }
-        if (treeEdges_)
-            treeEdges_->template traverse<T>(visitor);
+        if (treeEdges_) {
+            if (auto retval = treeEdges_->template traverse<T>(visitor))
+                return retval;
+        }
         if (vertex) {
             return visitor(vertex, TraversalEvent::LEAVE);
         } else {
@@ -515,32 +776,16 @@ public:
         return retval;
     }
 
-    /** Returns the property name for a child.
-     *
-     *  Returns the property name for the child at index @p i. If @p i is out of range, then an empty string is returned. */
-    std::string childName(size_t i);
-
     /** Returns the pointer for a child.
      *
      *  Returns the pointer for the child at index @p i. If @p i is out of range, then a null pointer is returned, which is
      *  indistinguishable from the case when a valid index is specified but that child is a null pointer. */
-    UserBasePtr child(size_t i);
+    UserBasePtr child(size_t i) const;
 
     /** Returns the number of children.
      *
      *  This is the number of children for this class and the base class, recursively. Some children may be null pointers. */
-    size_t nChildren(size_t i);
-
-protected:
-    /** Finds information about an indexed child.
-     *
-     *  The index, @p i, specifies the child about which information is returned. Children are numbered recursively in base classes
-     *  followed by the current class. This function is re-implemented in every derived class that has children.
-     *
-     *  A @ref ChildDescriptor is returned for every query. If the index is out of range for the class, then the return value is for
-     *  a child one past the end. I.e., the index is equal to the number of children, the name is empty, and the value is a null
-     *  pointer. */
-    virtual ChildDescriptor findChild(size_t i) const;
+    size_t nChildren() const;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -653,6 +898,17 @@ Vertex<B>::Edge<T>::Edge(UserBase &parent, const std::shared_ptr<T> &child)
 
 template<class B>
 template<class T>
+Vertex<B>::Edge<T>::Edge(Link link, UserBase &parent, const std::shared_ptr<T> &child)
+    : EdgeBase(Link::YES == link ? parent.treeEdges_ : nullptr), parent_(parent), child_(child) {
+    checkChildInsertion(child);
+    if (Link::YES == link)
+        parent_.treeEdges_ = this;                      // must be after checkChildInsertin for exception safety
+    if (child)
+        child->parent.set(parent);
+}
+
+template<class B>
+template<class T>
 void
 Vertex<B>::Edge<T>::checkChildInsertion(const std::shared_ptr<T> &child) const {
     if (child) {
@@ -756,6 +1012,17 @@ Vertex<B>::Edge<T>::operator=(const ReverseEdge &parent) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Implementations for EdgeVector<T>
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+template<class B>
+template<class T>
+Vertex<B>::EdgeVector<T>::EdgeVector(UserBase &parent)
+    : EdgeBase(parent.treeEdges_), parent_(parent) {
+    parent_.treeEdges_ = this;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Implementations for Vertex<B>
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -772,27 +1039,28 @@ Vertex<B>::pointer() {
 }
 
 template<class B>
-std::string
-Vertex<B>::childName(size_t i) {
-    return findChild(i).name;
-}
-
-template<class B>
 typename Vertex<B>::UserBasePtr
-Vertex<B>::child(size_t i) {
-    return findChild(i).value;
+Vertex<B>::child(size_t i) const {
+    std::vector<EdgeBase*> edges;
+    for (const EdgeBase *edge = treeEdges_; edge; edge = edge->prev)
+        edges.push_back(edge);
+    for (const EdgeBase *edge: boost::adaptors::reverse(edges)) {
+        if (i < edge->size()) {
+            return edge->pointer(i);
+        } else {
+            i -= edge->size();
+        }
+    }
+    return {};
 }
 
 template<class B>
 size_t
-Vertex<B>::nChildren(size_t i) {
-    return findChild(std::numeric_limits<size_t>::max()).i;
-}
-
-template<class B>
-typename Vertex<B>::ChildDescriptor
-Vertex<B>::findChild(size_t) const {
-    return ChildDescriptor{0, "", nullptr};
+Vertex<B>::nChildren() const {
+    size_t n = 0;
+    for (const EdgeBase *edge = treeEdges_; edge; edge = edge->prev)
+        n += edge->size();
+    return n;
 }
 
 } // namespace

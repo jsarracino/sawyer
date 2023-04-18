@@ -256,15 +256,6 @@ public:
         ASSERT_forbid(elmts_.empty());
         return *elmts_.back();
     }
-
-protected:
-    virtual typename List::ChildDescriptor findChild(size_t i) const override {
-        if (i < elmts_.size()) {
-            return typename List::ChildDescriptor{i, boost::lexical_cast<std::string>(i), (*elmts_[i])()};
-        } else {
-            return typename List::ChildDescriptor{elmts_.size(), "", nullptr};
-        }
-    }
 };
 
 } // namespace
