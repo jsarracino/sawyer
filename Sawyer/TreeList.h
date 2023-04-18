@@ -49,6 +49,10 @@ public:
             : base_(base) {}
 
     public:
+        iterator(const iterator &other)
+            : base_(other.base_) {}
+
+    public:
         /** Cause iterator to point to the next edge.
          *
          * @{ */
