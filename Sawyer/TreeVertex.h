@@ -12,33 +12,109 @@
 namespace Sawyer {
 namespace Tree {
 
+/** Traversal event.
+ *
+ *  The traversal event is used to indicate whether a vertex visitor is being invoked in pre-order or post-order during a
+ *  depth-first traversal. */
 enum class TraversalEvent {
     ENTER,                                          /**< Pre-order visitation. */
     LEAVE                                           /**< Post-order visitation. */
 };
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Base vertex type
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-/** Base vertex for use by users. */
+/** Base class for tree vertices.
+ *
+ *  A tree vertex is a type with zero or more edges that point to child vertices. The set of all vertices recursively reachable from
+ *  any particular vertex along these edges forms a tree data structure.
+ *
+ *  The user might want to have multiple independent tree types whose vertices aren't derived from any common base class. This is
+ *  accomplished by the user's base class inheriting from this class template, whose argument is the user's base class.
+ *
+ *  All vertex instantiations are reference counted and ponted to by @c std::shared_ptr. Some good practices are:
+ *
+ *  @li In a separate header file intended to be lightweight, often named "BasicTypes.h", create a forward declaration for the
+ *  class.
+ *
+ *  @li Declare the C++ constructors with protected access and replace them with public, static member functions named @c instance
+ *  that allocate a new object on the stack and return a pointer to it. This prevents users from accidentally instantiating objects
+ *  on the stack or in the data segment.
+ *
+ *  @li Create a nested type named @c Ptr inside the class. This should be an alias for the @c std::shared_ptr type. If you do this
+ *  consistently, then you can always use "Ptr" instead of the much longer "std::shared_ptr<MyClassName>". Since one often needs
+ *  this type outside this header file, adding an alias to the aforementioned "BasicTypes.h" is prudent, in which case the one in
+ *  BasicTypes.h should be like "MyClassNamePtr" (i.e., ending with "Ptr") and the alias inside the class would be "using Ptr =
+ *  MyClassNamePtr".
+ *
+ *  As mentioned, a vertex may have zero or more edges that point to children of the same tree. These are data members whose type is
+ *  @c Edge<T> or @c EdgeList<T> (or anything else that inherits from @c EdgeBase). These types do not have default constructors, so
+ *  the constructor in the containing class is expected to construct them by passing @c *this as the first argument to their
+ *  constructors.
+ *
+ *  In addition to edges that are part of the tree, it is permissible for a vertex to point directly to other vertices inside or
+ *  outside the tree from which they're pointed. These are called "cross tree" pointers and do not use the @p EdgeBase types. By the
+ *  way, the difference between an "edge" and a "pointer" in this context is that an edge is bidirectional.
+ *
+ *  Every vertex also has a @c parent public data member that points to the parent vertex in the tree. The @p parent data member is
+ *  updated automatically whenever a child is attached to or detached from a parent vertex. A vertex may have exactly zero or one
+ *  parent. If vertex <em>v</em> has no parent, then there does not exist any vertex that has an edge pointing to <em>v</em>.  Vice
+ *  versa, if there exists a vertex pointing to <em>v</em> then <em>v</em>->parent points to that vertex.
+ *
+ *  Two types of traversals are defined: forward and reverse. The traversals visit only vertices of the specified type (or
+ *  derivatives thereof), they support both pre- and post-order depth-first traversals, and they can return user-defined types, and
+ *  they can short-circuit by returning a certain class of values. For more information, see @ref traverse and @ref
+ *  traverseReverse. All other traversals can be defined in terms of these two.
+ *
+ *  Example of a class that has two scalar children one of which is always allocated, one vector child, and one cross-tree pointer.
+ *
+ * @code
+ *  class Test: public Base {  // Base ultimately inherits from Tree::Vertex<T>
+ *  public:
+ *      using Ptr = TestPtr;   // defined in BasicTypes.h as "using TestPtr = std::shared_ptr<Test>"
+ *
+ *  public:
+ *      Edge<Test> left;       // tree edge to the "left" child
+ *      Edge<Other> right;     // tree edge to the "right" child, always allocated. Other must also inherit from Base.
+ *      EdgeList<Test> list;   // tree edges to a bunch of children
+ *      TestPtr cross;         // non-tree pointer to some other vertex
+ *
+ *  protected:
+ *      Test()                 // C++ constructor hidden from casual users
+ *          : left(*this),
+ *            right(*this, Other::instance()),
+ *            list(*this) {}
+ *
+ *  public:
+ *      static Ptr instance(const Ptr &a, const Ptr &b) {
+ *          auto self = Ptr(new Test);
+ *          self->left = a;
+ *          self->list.push_back(b);
+ *
+ *          // Adjustments the parents happens automatically
+ *          assert(self->left == a && a->parent == self);
+ *          assert(self->list.front() == b && b->parent == self);
+ *
+ *          return self;
+ *      }
+ *  };
+ * @endcode */
 template<class B>
 class Vertex: public std::enable_shared_from_this<Vertex<B>> {
 public:
-    using UserBase = B;
-    using UserBasePtr = std::shared_ptr<UserBase>;
-    using TraversalEvent = Sawyer::Tree::TraversalEvent;
 
-protected:
-    /** Information about a child. */
-    struct ChildDescriptor {
-        size_t i;                                       /**< Index of the child counted across all inherited child edges. */
-        std::string name;                               /**< Property name of the child. */
-        UserBasePtr value;                              /**< Child pointer value. */
-    };
+    /** User's base class. */
+    using UserBase = B;
+
+    /** Pointer to user's base class. */
+    using UserBasePtr = std::shared_ptr<UserBase>;
+
+    /** Alias for traversal events. */
+    using TraversalEvent = Sawyer::Tree::TraversalEvent;
 
 public:
     template<class T> class Edge;
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // Errors and exceptions
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     /** Base class for errors and exceptions for this vertex type. */
     class Exception: public Sawyer::Exception::RuntimeError {
@@ -73,6 +149,9 @@ public:
             : Exception("insertion of vertex would cause a cycle in the tree", vertex) {}
     };
 
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // Child-to-parent edges
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     /** Points from a child to a parent in the tree.
      *
@@ -87,12 +166,12 @@ public:
     private:
         Vertex &child_;                                 // required child vertex owning this edge
 
-        // The parent pointer is a raw pointer because it is safe to do so, and because we need to know the pointer before the parent is
-        // fully constructed.
+        // The parent pointer is a raw pointer because it is safe to do so, and because we need to know the pointer before the
+        // parent is fully constructed.
         //
-        // It is safe (never dangling) because the pointer can only be changed by a forward edge, which is always a member of a vertex,
-        // and the parent pointer is only set to point to that vertex. When the parent is deleted the edge is deleted and its destructor
-        // changes the parent pointer back to null.
+        // It is safe (never dangling) because the pointer can only be changed by a forward edge, which is always a member of a
+        // vertex, and the parent pointer is only set to point to that vertex. When the parent is deleted the edge is deleted and
+        // its destructor changes the parent pointer back to null.
         //
         // The parent pointer is needed during construction of the parent when the parent has some edge data members that are being
         // initialized to point to non-null children. This happens during the parent's construction, before the parent has any
@@ -140,9 +219,17 @@ public:
         void set(UserBase &parent);
     };
 
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // Parent-to-child edges
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 private:
+
+    // Used internally as the non-template abstract base class for all parent-to-child edge types.
     class EdgeBase {
     private:
+        // Previous edge in this object, including edges defined in base classes. Edges in this linked list are ordered so that
+        // if edge A was initialized before edge B, then edge A will appear earlier in the list. The "prev" pointers in the list
+        // point backward through the list.
         EdgeBase *prev;
 
     public:
@@ -153,10 +240,16 @@ private:
         explicit EdgeBase(EdgeBase *prev)
             : prev(prev) {}
 
+        // Number of child pointers in this edge. Edges are either 1:1 or 1:N. Some of the child pointers could be null.
         virtual size_t size() const = 0;
 
+        // Return the i'th pointer. The argument is expected to be in the domain.
         virtual Vertex* at(size_t i) const = 0;
 
+        // Traverse through all the non-null children of appropriate type pointed to by all edges in the order that the edges were
+        // initialized. The visitor is invoked with two arguments: a non-null shared pointer to the child, and an indication of
+        // whether this is a pre- or post-order visit. The first visitor call that returns a value that is true in a Boolean context
+        // short circuits the traversal and that value becomes the return value of the traversal.
         template<class T, class Visitor>
         auto traverse(Visitor visitor) -> decltype(visitor(std::shared_ptr<T>(), TraversalEvent::ENTER)) {
             if (prev) {
@@ -297,6 +390,10 @@ public:
             return child_.get();
         }
     };
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // Vertex
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 public:
     /** Pointer to the parent in the tree.
      *
