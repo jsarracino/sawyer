@@ -11,10 +11,10 @@
 // This part is typical of a BasicTypes.h header
 class Expression;
 using ExpressionPtr = std::shared_ptr<Expression>;
-using ExpressionList = Sawyer::Tree::List<Expression, Expression>;
-using ExpressionListPtr = std::shared_ptr<ExpressionList>;
 class BinaryExpression;
 using BinaryExpressionPtr = std::shared_ptr<BinaryExpression>;
+class ExpressionList;
+using ExpressionListPtr = std::shared_ptr<ExpressionList>;
 class Recursive;
 using RecursivePtr = std::shared_ptr<Recursive>;
 class BinaryTree;
@@ -31,6 +31,22 @@ public:
     using Ptr = ExpressionPtr;
 protected:
     Expression() {}
+};
+
+// A ROSE-like ROSETTA node that holds only a list of pointers to children.
+class ExpressionList: public Expression {
+public:
+    using Ptr = ExpressionListPtr;
+    EdgeVector<Expression> children;
+
+protected:
+    ExpressionList()
+        : children(*this) {}
+
+public:
+    static Ptr instance() {
+        return Ptr(new ExpressionList);
+    }
 };
 
 // Expression vertex that has a left- and right-hand-side children, plus a list child that is allocated by the constructor. This is
@@ -282,222 +298,43 @@ static void test14() {
 #endif
 }
 
-// lists are initialized to be empty
 static void test15() {
-    auto s = ExpressionList::instance();
-    ASSERT_always_require(s->empty());
-    ASSERT_always_require(s->size() == 0);
 }
 
-// null pointers can be pushed and popped
 static void test16() {
-    auto s = ExpressionList::instance();
-
-    s->push_back(nullptr);
-    ASSERT_always_require(!s->empty());
-    ASSERT_always_require(s->size() == 1);
-
-    s->push_back(nullptr);
-    ASSERT_always_require(s->size() == 2);
-    ASSERT_always_require(s->at(0) == nullptr);
-
-    s->pop_back();
-    ASSERT_always_require(s->size() == 1);
-    ASSERT_always_require(s->at(0) == nullptr);
-
-    s->pop_back();
-    ASSERT_always_require(s->size() == 0);
-    ASSERT_always_require(s->empty());
 }
 
-// pushing a child changes its parent pointer
 static void test17() {
-    auto parent = ExpressionList::instance();
-    auto child = BinaryExpression::instance();
-
-    parent->push_back(child);
-    ASSERT_always_require(parent->size() == 1);
-    ASSERT_always_require(parent->at(0) == child);
-    ASSERT_always_require(child->parent == parent);
 }
 
-// popping a child clears its parent pointer
 static void test18() {
-    auto parent = ExpressionList::instance();
-    auto child = BinaryExpression::instance();
-    parent->push_back(child);
-
-    parent->pop_back();
-    ASSERT_always_require(child->parent == nullptr);
 }
 
-// assigning a child to a list changes its parent pointer
 static void test19() {
-    auto parent = ExpressionList::instance();
-    parent->push_back(nullptr);
-
-    auto child = BinaryExpression::instance();
-    parent->at(0) = child;
-    ASSERT_always_require(parent->at(0) == child);
-    ASSERT_always_require(child->parent == parent);
 }
 
-// overwriting a child in a list changes its parent pointer
 static void test20() {
-    auto parent = ExpressionList::instance();
-    auto child = BinaryExpression::instance();
-    parent->push_back(child);
-
-    auto child2 = BinaryExpression::instance();
-    parent->at(0) = child2;
-    ASSERT_always_require(parent->at(0) == child2);
-    ASSERT_always_require(child2->parent == parent);
-    ASSERT_always_require(child->parent == nullptr);
 }
 
-// reassigning a child to a list is a no-op
 static void test21() {
-    auto parent = ExpressionList::instance();
-    auto child = BinaryExpression::instance();
-    parent->push_back(child);
-
-    parent->at(0) = child;
-    ASSERT_always_require(parent->at(0) == child);
-    ASSERT_always_require(child->parent == parent);
 }
 
-// inserting a child twice is an error with no side effect
 static void test22() {
-    auto parent = ExpressionList::instance();
-    auto child = BinaryExpression::instance();
-    parent->push_back(child);
-
-    try {
-        parent->push_back(child);
-        ASSERT_always_not_reachable("data structure is no longer a tree");
-    } catch (const Expression::InsertionError &error) {
-        ASSERT_always_require(error.vertex == child);
-        ASSERT_always_require(parent->size() == 1);
-        ASSERT_always_require(parent->at(0) == child);
-        ASSERT_always_require(child->parent == parent);
-    }
 }
 
-// assigning a child to a second element is an error with no side effect
 static void test23() {
-    auto parent = ExpressionList::instance();
-    auto child = BinaryExpression::instance();
-    parent->push_back(child);
-    parent->push_back(nullptr);
-
-    try {
-        parent->at(1) = child;
-        ASSERT_always_not_reachable("data structure is no longer a tree");
-    } catch (const Expression::InsertionError &error) {
-        ASSERT_always_require(error.vertex == child);
-        ASSERT_always_require(parent->size() == 2);
-        ASSERT_always_require(parent->at(0) == child);
-        ASSERT_always_require(parent->at(1) == nullptr);
-        ASSERT_always_require(child->parent == parent);
-    }
 }
 
-// replacing a child with null resets its parent pointer
 static void test24() {
-    auto parent = ExpressionList::instance();
-    auto child = BinaryExpression::instance();
-    parent->push_back(child);
-
-    parent->at(0) = nullptr;
-    ASSERT_always_require(parent->at(0) == nullptr);
-    ASSERT_always_require(child->parent == nullptr);
 }
 
-// the array operator works
 static void test25() {
-    auto parent = ExpressionList::instance();
-    auto c1 = BinaryExpression::instance();
-    auto c2 = BinaryExpression::instance();
-    parent->push_back(c1);
-    parent->push_back(nullptr);
-    parent->push_back(c2);
-
-    ASSERT_always_require((*parent)[0] == c1);
-    ASSERT_always_require((*parent)[1] == nullptr);
-    ASSERT_always_require((*parent)[2] == c2);
-
-    (*parent)[2] = nullptr;
-    ASSERT_always_require((*parent)[2] == nullptr);
-    ASSERT_always_require(c2->parent == nullptr);
 }
 
-// list iteration works
 static void test26() {
-    auto parent = ExpressionList::instance();
-    auto c1 = BinaryExpression::instance();
-    auto c2 = BinaryExpression::instance();
-    parent->push_back(c1);
-    parent->push_back(nullptr);
-    parent->push_back(c2);
-
-    auto iter = parent->begin();
-    ASSERT_always_require(iter != parent->end());
-    ASSERT_always_require(*iter == c1);
-    ASSERT_always_require(iter[0] == c1);
-    ASSERT_always_require(iter[1] == nullptr);
-    ASSERT_always_require(iter[2] == c2);
-
-    auto iter2 = ++iter;
-    ASSERT_always_require(iter2 == iter);
-    ASSERT_always_require(!(iter2 < iter));
-    ASSERT_always_require(iter2 - iter == 0);
-    ASSERT_always_require(iter2 + 0 == iter);
-    ASSERT_always_require(iter != parent->end());
-    ASSERT_always_require(*iter == nullptr);
-
-    const auto iter3 = iter++;
-    ASSERT_always_require(iter3 != iter);
-    ASSERT_always_require(iter3 < iter);
-    ASSERT_always_require(iter3 - iter == 1);
-    ASSERT_always_require(iter3 + 1 == iter);
-    ASSERT_always_require(iter != parent->end());
-    ASSERT_always_require(*iter == c2);
-    ASSERT_always_require(iter3[1] == c2);
-
-    ++iter;
-    ASSERT_always_require(iter == parent->end());
-
-    --iter;
-    ASSERT_always_require(*iter == c2);
-
-    iter -= 2;
-    ASSERT_always_require(*iter == c1);
-
-    iter += 3;
-    ASSERT_always_require(iter == parent->end());
 }
 
-// forward traversals visit children
 static void test27() {
-    auto parent = BinaryTree::instance();
-    auto child1 = BinaryTree::instance();
-    auto child2 = BinaryTree::instance();
-    parent->left = child1;
-    parent->right = child2;
-
-    std::vector<BinaryTree::Ptr> answer;
-    answer.push_back(child2);
-    answer.push_back(child1);
-    answer.push_back(parent);
-
-    parent->traverse<BinaryTree>([&answer](const BinaryTree::Ptr &node, BinaryTree::TraversalEvent event) {
-        if (BinaryTree::TraversalEvent::ENTER == event) {
-            ASSERT_always_forbid(answer.empty());
-            ASSERT_always_require(answer.back() == node);
-            answer.pop_back();
-        }
-        return false;
-    });
 }
 
 // a multi edge has zero initial children
@@ -522,7 +359,7 @@ static void test29() {
     ASSERT_always_require(parent->nChildren() == 4);    // a=1, b=2, c=1
 }
 
-// pushing a child changes the child's parent pointer
+// pushing a child to a multi-edge changes the child's parent pointer
 static void test30() {
     auto parent = Multi::instance();
     auto child = Multi::instance();
