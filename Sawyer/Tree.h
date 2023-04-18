@@ -984,7 +984,7 @@ Vertex<B>::Edge<T>::operator!=(const Edge<U> &other) const {
 
 template<class B>
 template<class T>
-Vertex<B>::Edge<T>&
+typename Vertex<B>::Edge<T>&
 Vertex<B>::Edge<T>::operator=(const std::shared_ptr<T> &child) {
     if (child != child_) {
         checkChildInsertion(child);
@@ -1006,7 +1006,7 @@ Vertex<B>::Edge<T>::operator=(const std::shared_ptr<T> &child) {
 
 template<class B>
 template<class T>
-Vertex<B>::Edge<T>&
+typename Vertex<B>::Edge<T>&
 Vertex<B>::Edge<T>::operator=(const ReverseEdge &parent) {
     return (*this) = parent();
 }
