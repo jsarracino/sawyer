@@ -770,6 +770,96 @@ static void test47() {
     ASSERT_always_require2(x == 911, x);
 }
 
+// Sawyer::Tree traversals support ROSE-style traversals.
+static void test48() {
+    auto parent = Multi::instance();
+    auto a = Multi::instance();
+    auto b1 = Multi::instance();
+    auto b2 = Multi::instance();
+    auto c = Multi::instance();
+    parent->a = a;
+    parent->b.push_back(b1);
+    parent->b.push_back(b2);
+    parent->c = c;
+
+    // Partial implementation of ROSE's ::AstSimpleTraversal class. Think "SgNode" when you see "Expression" since the root of
+    // our class hierarchy in this unit test file is "Expression" instead of "SgNode". Also, we're using reference counting pointers
+    // instead of raw pointers, so you'll see "Ptr" (aliases for std::shared_ptr<T>) instead of "*".
+    enum Order { preorder, postorder };
+
+    class AstSimpleProcessing {
+    public:
+        virtual ~AstSimpleProcessing() {}
+
+    protected:
+        virtual void visit(const ExpressionPtr&) = 0;
+
+    public:
+        void traverse(const ExpressionPtr &node, Order order) {
+            if (node) {
+                node->traverse<Expression>([this, &order](const ExpressionPtr &node, Expression::TraversalEvent event) {
+                    if ((preorder == order && Expression::TraversalEvent::ENTER == event) ||
+                        (postorder == order && Expression::TraversalEvent::LEAVE == event)) {
+                        visit(node);
+                    }
+                    return false;
+                });
+            }
+        }
+    };
+
+    // Typical user code using AstSimpleProcessing to count the number of vertices in the tree.
+    struct: AstSimpleProcessing {
+        size_t n = 0;
+
+        void visit(const ExpressionPtr&) {
+            ++n;
+        }
+    } nodeCounter;
+    nodeCounter.traverse(parent, preorder);
+    ASSERT_always_require(nodeCounter.n == 5);
+
+    // Here's a partial implementation of AstPrePostProcessing.
+    class AstPrePostProcessing {
+    public:
+        virtual ~AstPrePostProcessing() {}
+
+    protected:
+        virtual void preOrderVisit(const ExpressionPtr&) = 0;
+        virtual void postOrderVisit(const ExpressionPtr&) = 0;
+
+    public:
+        void traverse(const ExpressionPtr &node) {
+            if (node) {
+                node->traverse<Expression>([this](const ExpressionPtr &node, Expression::TraversalEvent event) {
+                    if (Expression::TraversalEvent::ENTER == event) {
+                        preOrderVisit(node);
+                    } else {
+                        postOrderVisit(node);
+                    }
+                    return false;
+                });
+            }
+        }
+    };
+
+    // And typical user code that checks that parent pointers are correct
+    struct: AstPrePostProcessing {
+        std::vector<ExpressionPtr> stack;
+
+        void preOrderVisit(const ExpressionPtr &node) {
+            ASSERT_always_require(stack.empty() || node->parent == stack.back());
+            stack.push_back(node);
+        }
+
+        void postOrderVisit(const ExpressionPtr&) {
+            ASSERT_forbid(stack.empty());
+            stack.pop_back();
+        }
+    } check;
+    check.traverse(parent);
+}
+
 int main() {
     test01();
     test02();
@@ -818,4 +908,5 @@ int main() {
     test45();
     test46();
     test47();
+    test48();
 }
