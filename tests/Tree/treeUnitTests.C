@@ -14,6 +14,8 @@ class BinaryExpression;
 using BinaryExpressionPtr = std::shared_ptr<BinaryExpression>;
 class Recursive;
 using RecursivePtr = std::shared_ptr<Recursive>;
+class BinaryTree;
+using BinaryTreePtr = std::shared_ptr<BinaryTree>;
 
 // This part is typical of a header, although the implementations are usually elsewhere
 class Expression: public Sawyer::Tree::Vertex<Expression> {
@@ -52,6 +54,29 @@ protected:
 public:
     static Ptr instance() {
         return Ptr(new Recursive);
+    }
+};
+
+class BinaryTree: public Expression {
+public:
+    using Ptr = BinaryTreePtr;
+    Edge<BinaryTree> left;
+    Edge<BinaryTree> right;
+
+protected:
+    BinaryTree()
+        : left(*this), right(*this) {}
+
+public:
+    static Ptr instance() {
+        return Ptr(new BinaryTree);
+    }
+
+    static Ptr instance(const Ptr &left, const Ptr &right) {
+        auto self = instance();
+        self->left = left;
+        self->right = right;
+        return self;
     }
 };
 
@@ -420,6 +445,29 @@ static void test26() {
     ASSERT_always_require(iter == parent->end());
 }
 
+// forward traversals visit children
+static void test27() {
+    auto parent = BinaryTree::instance();
+    auto child1 = BinaryTree::instance();
+    auto child2 = BinaryTree::instance();
+    parent->left = child1;
+    parent->right = child2;
+
+    std::vector<BinaryTree::Ptr> answer;
+    answer.push_back(child2);
+    answer.push_back(child1);
+    answer.push_back(parent);
+
+    parent->traverse<BinaryTree>([&answer](const BinaryTree::Ptr &node, BinaryTree::TraversalEvent event) {
+        if (BinaryTree::TraversalEvent::ENTER == event) {
+            ASSERT_always_forbid(answer.empty());
+            ASSERT_always_require(answer.back() == node);
+            answer.pop_back();
+        }
+        return false;
+    });
+}
+
 int main() {
     test01();
     test02();
@@ -447,4 +495,5 @@ int main() {
     test24();
     test25();
     test26();
+    test27();
 }

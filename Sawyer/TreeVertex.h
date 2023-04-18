@@ -140,6 +140,39 @@ public:
         void set(UserBase &parent);
     };
 
+private:
+    class EdgeBase {
+    private:
+        EdgeBase *prev;
+
+    public:
+        virtual ~EdgeBase() {}
+
+        EdgeBase() = delete;
+
+        explicit EdgeBase(EdgeBase *prev)
+            : prev(prev) {}
+
+        virtual size_t size() const = 0;
+
+        virtual Vertex* at(size_t i) const = 0;
+
+        template<class T, class Visitor>
+        auto traverse(Visitor visitor) -> decltype(visitor(std::shared_ptr<T>(), TraversalEvent::ENTER)) {
+            if (prev) {
+                if (auto retval = prev->traverse<T>(visitor))
+                    return retval;
+            }
+            for (size_t i = 0; i < size(); ++i) {
+                if (auto child = at(i)) {
+                    if (auto retval = child->template traverse<T>(visitor))
+                        return retval;
+                }
+            }
+            return decltype(visitor(std::shared_ptr<T>(), TraversalEvent::ENTER))();
+        }
+    };
+
 public:
     /** A parent-to-child edge in a tree.
      *
@@ -174,7 +207,7 @@ public:
      *  };
      * @endcode */
     template<class T>
-    class Edge {
+    class Edge: public EdgeBase {
     public:
         /** Type of child being pointed to. */
         using Child = T;
@@ -254,6 +287,15 @@ public:
 
     private:
         void checkChildInsertion(const ChildPtr &child) const;
+
+        size_t size() const override {
+            return 1;
+        }
+
+        Vertex* at(size_t i) const override {
+            ASSERT_always_require(0 == i);
+            return child_.get();
+        }
     };
 public:
     /** Pointer to the parent in the tree.
@@ -261,6 +303,7 @@ public:
      *  A vertex's parent pointer is adjusted automatically when the vertex is inserted or removed as a child of another vertex. An
      *  invariant of this design is that whenever vertex A is a child of vertex B, then vertex B is a parent of vertex A. */
     ReverseEdge parent;
+    EdgeBase *treeEdges_ = nullptr;
 
 protected:
     virtual void destructorHelper() {}
@@ -336,15 +379,8 @@ public:
             if (auto retval = visitor(vertex, TraversalEvent::ENTER))
                 return retval;
         }
-        for (size_t i = 0; true; ++i) {
-            const ChildDescriptor child = findChild(i);
-            if (child.i < i) {
-                break;
-            } else if (child.value) {
-                if (auto retval = child.value->template traverse<T>(visitor))
-                    return retval;
-            }
-        }
+        if (treeEdges_)
+            treeEdges_->template traverse<T>(visitor);
         if (vertex) {
             return visitor(vertex, TraversalEvent::LEAVE);
         } else {
@@ -504,13 +540,16 @@ Vertex<B>::Edge<T>::~Edge() {
 template<class B>
 template<class T>
 Vertex<B>::Edge<T>::Edge(UserBase &parent)
-    : parent_(parent) {}
+    : EdgeBase(parent.treeEdges_), parent_(parent) {
+    parent_.treeEdges_ = this;
+}
 
 template<class B>
 template<class T>
 Vertex<B>::Edge<T>::Edge(UserBase &parent, const std::shared_ptr<T> &child)
-    : parent_(parent), child_(child) {
+    : EdgeBase(parent.treeEdges_), parent_(parent), child_(child) {
     checkChildInsertion(child);
+    parent_.treeEdges_ = this;                          // must be after checkChildInsertin for exception safety
     if (child)
         child->parent.set(parent);
 }
@@ -655,7 +694,7 @@ Vertex<B>::nChildren(size_t i) {
 
 template<class B>
 typename Vertex<B>::ChildDescriptor
-Vertex<B>::findChild(size_t i) const {
+Vertex<B>::findChild(size_t) const {
     return ChildDescriptor{0, "", nullptr};
 }
 
