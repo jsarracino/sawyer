@@ -863,6 +863,7 @@ public:                                                 // public only for the s
     public:
         /** Assignment. */
         Derived& operator=(const Derived &other) { base_ = other.base_; return *derived(); }
+        VertexBaseIterator& operator=(const VertexBaseIterator &other) { base_ = other.base_; return *this; }
 
         /** Increment.
          *
@@ -919,6 +920,7 @@ public:
         typedef Edge* Pointer;
         EdgeIterator() {}
         EdgeIterator(const EdgeIterator &other): Super(other) {}
+        EdgeIterator& operator=(const EdgeIterator &other) { this->Super::operator=(other); return *this; }
         Edge& operator*() const { return this->dereference(); }
         Edge* operator->() const { return &this->dereference(); }
     private:
@@ -945,6 +947,7 @@ public:
         ConstEdgeIterator() {}
         ConstEdgeIterator(const ConstEdgeIterator &other): Super(other) {}
         ConstEdgeIterator(const EdgeIterator &other): Super(other.phase_, other.iter_, other.vlist_) {}
+        ConstEdgeIterator& operator=(const ConstEdgeIterator &other) { this->Super::operator=(other); return *this; }
         const Edge& operator*() const { return this->dereference(); }
         const Edge* operator->() const { return &this->dereference(); }
     private:
@@ -970,6 +973,7 @@ public:
         EdgeValueIterator() {}
         EdgeValueIterator(const EdgeValueIterator &other): Super(other) {}
         EdgeValueIterator(const EdgeIterator &other): Super(other.phase_, other.iter_, other.vlist_) {}
+        EdgeValueIterator& operator=(const EdgeValueIterator &other) { this->Super::operator=(other); return *this; }
         EdgeValue& operator*() const { return this->dereference().value(); }
         EdgeValue* operator->() const { return &this->dereference().value(); }
     private:
@@ -997,6 +1001,7 @@ public:
         ConstEdgeValueIterator(const EdgeValueIterator &other): Super(other.phase_, other.iter_, other.vlist_) {}
         ConstEdgeValueIterator(const EdgeIterator &other): Super(other.phase_, other.iter_, other.vlist_) {}
         ConstEdgeValueIterator(const ConstEdgeIterator &other): Super(other.phase_, other.iter_, other.vlist_) {}
+        ConstEdgeValueIterator& operator=(const EdgeValueIterator &other) { this->Super::operator=(other); return *this; }
         const EdgeValue& operator*() const { return this->dereference().value(); }
         const EdgeValue* operator->() const { return &this->dereference().value(); }
     private:
@@ -1020,6 +1025,7 @@ public:
         typedef Vertex* Pointer;
         VertexIterator() {}
         VertexIterator(const VertexIterator &other): Super(other) {}
+        VertexIterator& operator=(const VertexIterator &other) { this->Super::operator=(other); return *this; }
         Vertex& operator*() const { return this->dereference(); }
         Vertex* operator->() const { return &this->dereference(); }
     private:
@@ -1042,6 +1048,7 @@ public:
         ConstVertexIterator() {}
         ConstVertexIterator(const ConstVertexIterator &other): Super(other) {}
         ConstVertexIterator(const VertexIterator &other): Super(other.base_) {}
+        ConstVertexIterator& operator=(const ConstVertexIterator &other) { this->Super::operator=(other); return *this; }
         const Vertex& operator*() const { return this->dereference(); }
         const Vertex* operator->() const { return &this->dereference(); }
     private:
@@ -1065,6 +1072,7 @@ public:
         VertexValueIterator() {}
         VertexValueIterator(const VertexValueIterator &other): Super(other) {}
         VertexValueIterator(const VertexIterator &other): Super(other.base_) {}
+        VertexValueIterator& operator=(const VertexValueIterator &other) { this->Super::operator=(other); return *this; }
         VertexValue& operator*() const { return this->dereference().value(); }
         VertexValue* operator->() const { return &this->dereference().value(); }
     private:
@@ -1089,6 +1097,7 @@ public:
         ConstVertexValueIterator(const VertexValueIterator &other): Super(other.base_) {}
         ConstVertexValueIterator(const VertexIterator &other): Super(other.base_) {}
         ConstVertexValueIterator(const ConstVertexIterator &other): Super(other.base_) {}
+        ConstVertexValueIterator& operator=(const ConstVertexValueIterator &other) { this->Super::operator=(other); return *this; }
         const VertexValue& operator*() const { return this->dereference().value(); }
         const VertexValue* operator->() const { return &this->dereference().value(); }
     private:

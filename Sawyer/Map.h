@@ -119,8 +119,11 @@ private:
         BaseIterator base_;
         BidirectionalIterator() {}
         BidirectionalIterator(const BaseIterator &base): base_(base) {}
+        BidirectionalIterator(const BidirectionalIterator &other): base_(other.base_) {}
+
     public:
         Derived& operator=(const Derived &other) { base_ = other.base_; return *derived(); }
+        BidirectionalIterator& operator=(const BidirectionalIterator &other) { base_ = other.base; return *this; }
 
         /** Pre-increment to next iterator position. */
         Derived& operator++() { ++base_; return *derived(); }
@@ -164,6 +167,9 @@ public:
         /** Copy constructor. */
         NodeIterator(const NodeIterator &other): Super(other) {}
 
+        /** Assignment. */
+        NodeIterator& operator=(const NodeIterator &other) { this->Super::operator=(other); return *this; }
+
         // std::map stores std::pair nodes, but we want to return Node, which must have the same layout.
         /** Dereference iterator to return a storage node. */
         Node& operator*() const { return *(Node*)&*this->base_; }
@@ -189,6 +195,9 @@ public:
 
         /** Copy constructor. */
         ConstNodeIterator(const NodeIterator &other): Super(typename StlMap::const_iterator(other.base())) {}
+
+        /** Assignment. */
+        ConstNodeIterator& operator=(const ConstNodeIterator &other) { this->Super::operator=(other); return *this; }
 
         // std::map stores std::pair nodes, but we want to return Node, which must have the same layout.
         /** Dereference iterator to return a storage node. */
@@ -220,6 +229,9 @@ public:
         /** Copy constructor. */
         ConstKeyIterator(const ConstNodeIterator &other): Super(other.base()) {}
 
+        /** Assignment. */
+        ConstKeyIterator& operator=(const ConstKeyIterator &other) { this->Super::operator=(other); return *this; }
+
         /** Dereference iterator to return the interval of the storage node. */
         const Key& operator*() const { return this->base()->first; }
 
@@ -241,6 +253,9 @@ public:
 
         /** Copy constructor. */
         ValueIterator(const NodeIterator &other): Super(other.base()) {}
+
+        /** Assignment. */
+        ValueIterator& operator=(const ValueIterator &other) { this->Super::operator=(other); return *this; }
 
         /** Dereference iterator to return the value of the storage node. */
         Value& operator*() const { return this->base()->second; }
@@ -269,6 +284,9 @@ public:
 
         /** Copy constructor. */
         ConstValueIterator(const NodeIterator &other): Super(typename StlMap::const_iterator(other.base())) {}
+
+        /** Assignment. */
+        ConstValueIterator& operator=(const ConstValueIterator &other) { this->Super::operator=(other); return *this; }
 
         /** Dereference iterator to return the value of the storage node. */
         const Value& operator*() const { return this->base()->second; }
@@ -309,6 +327,13 @@ public:
         boost::iterator_range<OtherIterator> otherNodes = other.nodes();
         for (OtherIterator otherIter=otherNodes.begin(); otherIter!=otherNodes.end(); ++otherIter)
             map_.insert(map_.end(), std::make_pair(Key(otherIter->key()), Value(otherIter->value())));
+    }
+
+    Map& operator=(const Map &other) {
+        clear();
+        for (const auto &node: other.nodes())
+            map_.insert(map_.end(), std::make_pair(node.key(), node.value()));
+        return *this;
     }
 
     /** Make this map be a copy of another map.
