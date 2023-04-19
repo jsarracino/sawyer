@@ -375,8 +375,28 @@ public:
          *  more concise and clear to assign the null pointer directly.
          *
          * @{ */
-        Edge& operator=(const ChildPtr &child);
-        Edge& operator=(const ReverseEdge&);
+        Edge& operator=(const ChildPtr &child) {
+            if (child != child_) {
+                checkChildInsertion(child);
+
+                // Unlink the child from the tree
+                if (child_) {
+                    child_->parent.reset();                     // child-to-parent edge
+                    child_.reset();                             // parent-to-child edge
+                }
+
+                // Link new child into the tree
+                if (child) {
+                    child->parent.set(parent_);
+                    child_ = child;
+                }
+            }
+            return *this;
+        }
+
+        Edge& operator=(const ReverseEdge &parent) {
+            return (*this) = parent();
+        }
         /** @} */
 
         /** True if child is not null. */
@@ -980,35 +1000,6 @@ template<class U>
 bool
 Vertex<B>::Edge<T>::operator!=(const Edge<U> &other) const {
     return child_.get() != other.get();
-}
-
-template<class B>
-template<class T>
-typename Vertex<B>::Edge<T>&
-Vertex<B>::Edge<T>::operator=(const std::shared_ptr<T> &child) {
-    if (child != child_) {
-        checkChildInsertion(child);
-
-        // Unlink the child from the tree
-        if (child_) {
-            child_->parent.reset();                     // child-to-parent edge
-            child_.reset();                             // parent-to-child edge
-        }
-
-        // Link new child into the tree
-        if (child) {
-            child->parent.set(parent_);
-            child_ = child;
-        }
-    }
-    return *this;
-}
-
-template<class B>
-template<class T>
-typename Vertex<B>::Edge<T>&
-Vertex<B>::Edge<T>::operator=(const ReverseEdge &parent) {
-    return (*this) = parent();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
