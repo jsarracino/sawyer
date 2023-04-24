@@ -772,6 +772,42 @@ public:
         }
     }
 
+    /** Pre-order forward traversal.
+     *
+     *  Perform a depth-first pre-order traversal. The functor is called once for each vertex before any of its children are
+     *  traversed. This is equivalent to the @ref traverse traversal where the functor checks that the event is an @c ENTER event
+     *  before doing anything. If the functor returns a value which evaluates to true in Boolean context, then the traversal
+     *  immediately returns that value, otherwise it continues until the entire subtree is visited and returns a default-constructed
+     *  value. */
+    template<class T, class Visitor>
+    auto traversePre(const Visitor &visitor) {
+        return traverse<T>([&visitor] (const std::shared_ptr<T> &vertex, TraversalEvent event) {
+            if (TraversalEvent::ENTER == event) {
+                return visitor(vertex);
+            } else {
+                return decltype(visitor(vertex))();
+            }
+        });
+    }
+
+    /** Post-order forward traversal.
+     *
+     *  Perform a depth-first post-order traversal. The functor is called once for each vertex all of its children are
+     *  traversed. This is equivalent to the @ref traverse traversal where the functor checks that the event is an @c LEAVE event
+     *  before doing anything. If the functor returns a value which evaluates to true in Boolean context, then the traversal
+     *  immediately returns that value, otherwise it continues until the entire subtree is visited and returns a default-constructed
+     *  value. */
+    template<class T, class Visitor>
+    auto traversePost(const Visitor &visitor) {
+        return traverse<T>([&visitor] (const std::shared_ptr<T> &vertex, TraversalEvent event) {
+            if (TraversalEvent::LEAVE == event) {
+                return visitor(vertex);
+            } else {
+                return decltype(visitor(vertex))();
+            }
+        });
+    }
+
     /** Traversal that finds the closest ancestor of type T or derived from T. */
     template<class T>
     std::shared_ptr<T> findFirstAncestor() {
