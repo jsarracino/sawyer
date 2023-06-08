@@ -1269,7 +1269,7 @@ public:
     }
 
     // Run full parsing procedure.
-    void Parse(Node &root, std::iostream &stream) {
+    void Parse(Node &root, std::istream &stream) {
         try {
             root.Clear();
             ReadLines(stream);
@@ -1286,7 +1286,7 @@ private:
     ParseImp(const ParseImp &/*copy*/) {}
 
     // Read all lines, ignoring: empty lines, comments, and document start/end.
-    void ReadLines(std::iostream &stream) {
+    void ReadLines(std::istream &stream) {
         std::string     line = "";
         size_t          lineNo = 0;
         bool            documentStartFound = false;
@@ -1883,14 +1883,14 @@ void Parse(Node &root, const boost::filesystem::path &fileName) {
 }
 
 Node
-parse(std::iostream &stream) {
+parse(std::istream &stream) {
     Node root;
     Parse(root, stream);
     return root;
 }
 
 void
-Parse(Node &root, std::iostream &stream) {
+Parse(Node &root, std::istream &stream) {
     ParseImp *pImp = nullptr;
 
     try {
