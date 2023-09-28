@@ -13,7 +13,6 @@
 
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/cstdint.hpp>
-#include <boost/foreach.hpp>
 #include <boost/integer_traits.hpp>
 #include <boost/lexical_cast.hpp>
 #include <boost/serialization/access.hpp>
@@ -195,7 +194,7 @@ public:
         }
         if (!nameSubstring_.empty()) {
             out <<", substr=\"";
-            BOOST_FOREACH (char ch, nameSubstring_) {
+            for (char ch: nameSubstring_) {
                 switch (ch) {
                     case '\a': out <<"\\a"; break;
                     case '\b': out <<"\\b"; break;
@@ -211,7 +210,7 @@ public:
                             out <<ch;
                         } else {
                             char buf[8];
-                            sprintf(buf, "\\%03o", (unsigned)(unsigned char)ch);
+                            snprintf(buf, sizeof(buf), "\\%03o", (unsigned)(unsigned char)ch);
                             out <<buf;
                         }
                         break;
@@ -1039,7 +1038,7 @@ public:
      *  an @ref AllocatingBuffer. */
     AddressMap(const AddressMap &other, bool copyOnWrite=false): Super(other) {
         if (copyOnWrite) {
-            BOOST_FOREACH (Segment &segment, this->values()) {
+            for (Segment &segment: this->values()) {
                 if (const typename Buffer::Ptr &buffer = segment.buffer())
                     buffer->copyOnWrite(true);
             }
@@ -1305,7 +1304,7 @@ public:
      *
      *  @li Checks that the buffers of the map are appropriate sizes for the address interval in which they're mapped. */
     void checkConsistency() const {
-        BOOST_FOREACH (const Node &node, nodes()) {
+        for (const Node &node: nodes()) {
             const Sawyer::Container::Interval<Address> &interval = node.key();
             const Segment &segment = node.value();
             if (segment.buffer()==NULL) {
@@ -1354,7 +1353,7 @@ public:
      *
      * @code
      *  typedef AddressMap<Address,Value>::Segment Segment;
-     *  BOOST_FOREACH (Segment &segment, map.substr("IAT").segments(MATCH_NONCONTIGUOUS))
+     *  for (Segment &segment: map.substr("IAT").segments(MATCH_NONCONTIGUOUS))
      *      segment.accessibility(segment.accessibility() & ~EXECUTABLE);
      * @endcode
      *
@@ -1402,7 +1401,7 @@ public:
      *
      * @code
      *  typedef AddressMap<Address,Value>::Node Node;
-     *  BOOST_FOREACH (const Node &node, map.within(1000,2000).substr("IAT").nodes(MATCH_NONCONTIGUOUS))
+     *  for (const Node &node: map.within(1000,2000).substr("IAT").nodes(MATCH_NONCONTIGUOUS))
      *      std::cout <<"segment at " <<node.key() <<" named " <<node.value().name() <<"\n";
      * @endcode
      *
@@ -1617,7 +1616,7 @@ public:
     void traverse(Functor &functor, const AddressMapConstraints<const AddressMap> &c, MatchFlags flags=0) const {
         using namespace AddressMapImpl;
         MatchedConstraints<const AddressMap> m = matchConstraints(*this, c, flags);
-        BOOST_FOREACH (const Node &node, m.nodes_) {
+        for (const Node &node: m.nodes_) {
             Sawyer::Container::Interval<Address> part = m.interval_ & node.key();
             if (!functor(*this, part))
                 return;
@@ -1628,7 +1627,7 @@ public:
     void traverse(Functor &functor, const AddressMapConstraints<AddressMap> &c, MatchFlags flags=0) {
         using namespace AddressMapImpl;
         MatchedConstraints<AddressMap> m = matchConstraints(*this, c, flags);
-        BOOST_FOREACH (const Node &node, m.nodes_) {
+        for (const Node &node: m.nodes_) {
             Sawyer::Container::Interval<Address> part = m.interval_ & node.key();
             if (!functor(*this, part))
                 return;
@@ -1664,7 +1663,7 @@ public:
      *  std::vector<Value> buf(1024);
      *  while (Interval<Address> accessed = map.atOrAfter(a).read(buf)) {
      *      a = accessed.least();
-     *      BOOST_FOREACH (const Value &v, buf)
+     *      for (const Value &v: buf)
      *          std::cout <<a++ <<": " <<v <<"\n";
      *      if (accessed.greatest()==map.hull().greatest())
      *          break; // to handle case when a++ overflowed
@@ -1689,7 +1688,7 @@ public:
             flags |= MATCH_CONTIGUOUS;
         MatchedConstraints<const AddressMap> m = matchConstraints(*this, c, flags);
         if (buf) {
-            BOOST_FOREACH (const Node &node, m.nodes_) {
+            for (const Node &node: m.nodes_) {
                 Sawyer::Container::Interval<Address> part = m.interval_ & node.key(); // part of segment to read
                 ASSERT_forbid(part.isEmpty());
                 Address bufferOffset = part.least() - node.key().least() + node.value().offset();
@@ -1750,7 +1749,7 @@ public:
             flags |= MATCH_CONTIGUOUS;
         MatchedConstraints<AddressMap> m = matchConstraints(*this, c.prohibit(Access::IMMUTABLE), flags);
         if (buf) {
-            BOOST_FOREACH (Node &node, m.nodes_) {
+            for (Node &node: m.nodes_) {
                 Segment &segment = node.value();
                 Sawyer::Container::Interval<Address> part = m.interval_ & node.key(); // part of segment to write
                 ASSERT_forbid(part.isEmpty());
@@ -1803,11 +1802,11 @@ public:
         if (0==(flags & (MATCH_CONTIGUOUS|MATCH_NONCONTIGUOUS)))
             flags |= MATCH_NONCONTIGUOUS;
         MatchedConstraints<AddressMap> m = matchConstraints(*this, c.addressConstraints(), flags);
-        BOOST_FOREACH (const Node &node, m.nodes_) {
+        for (const Node &node: m.nodes_) {
             if (isSatisfied(node, c))
                 toErase.insert(node.key() & m.interval_);
         }
-        BOOST_FOREACH (const Sawyer::Container::Interval<Address> &interval, toErase.intervals())
+        for (const Sawyer::Container::Interval<Address> &interval: toErase.intervals())
             this->erase(interval);
     }
 
@@ -1830,12 +1829,12 @@ public:
             flags |= MATCH_NONCONTIGUOUS;
         IntervalSet<Sawyer::Container::Interval<Address> > toKeep;
         MatchedConstraints<AddressMap> m = matchConstraints(*this, c.addressConstraints(), flags);
-        BOOST_FOREACH (const Node &node, m.nodes_) {
+        for (const Node &node: m.nodes_) {
             if (isSatisfied(node, c))
                 toKeep.insert(node.key() & m.interval_);
         }
         toKeep.invert();
-        BOOST_FOREACH (const Sawyer::Container::Interval<Address> &interval, toKeep.intervals())
+        for (const Sawyer::Container::Interval<Address> &interval: toKeep.intervals())
             this->erase(interval);
     }
 
@@ -1866,7 +1865,7 @@ public:
         typedef std::pair<Sawyer::Container::Interval<Address>, Segment> ISPair;
         std::vector<ISPair> newSegments;
         MatchedConstraints<AddressMap> m = matchConstraints(*this, c.addressConstraints(), flags);
-        BOOST_FOREACH (Node &node, m.nodes_) {
+        for (Node &node: m.nodes_) {
             Segment &segment = node.value();
             if (isSatisfied(node, c)) {
                 unsigned newAccess = (segment.accessibility() | requiredAccess) & ~prohibitedAccess;
@@ -1881,7 +1880,7 @@ public:
                 }
             }
         }
-        BOOST_FOREACH (const ISPair &pair, newSegments)
+        for (const ISPair &pair: newSegments)
             this->insert(pair.first, pair.second);
     }
     

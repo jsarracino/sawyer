@@ -5,7 +5,6 @@
 #include <boost/algorithm/string/find.hpp>
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/config.hpp>
-#include <boost/foreach.hpp>
 #include <cerrno>
 #include <cmath>
 #include <cstdio>
@@ -99,7 +98,7 @@ escape(const std::string &s) {
                 } else {
                     char buf[8];
 #include <Sawyer/WarningsOff.h>
-                    sprintf(buf, "\\%03o", (unsigned)s[i]);
+                    snprintf(buf, sizeof(buf), "\\%03o", (unsigned)s[i]);
 #include <Sawyer/WarningsRestore.h>
                     retval += buf;
                 }
@@ -1629,7 +1628,7 @@ SAWYER_EXPORT
 Facilities::Facilities(const Facilities &other) {
     SAWYER_THREAD_TRAITS::LockGuard lock(other.mutex_);
     facilities_.clear();
-    BOOST_FOREACH (const FacilityMap::Node &otherNode, other.facilities_.nodes()) {
+    for (const FacilityMap::Node &otherNode: other.facilities_.nodes()) {
         if (otherNode.value()->isConstructed())
             facilities_.insert(otherNode.key(), otherNode.value());
     }
@@ -1642,7 +1641,7 @@ SAWYER_EXPORT Facilities&
 Facilities::operator=(const Facilities &other) {
     LockGuard2<SAWYER_THREAD_TRAITS::Mutex> lock(mutex_, other.mutex_);
     facilities_.clear();
-    BOOST_FOREACH (const FacilityMap::Node &otherNode, other.facilities_.nodes()) {
+    for (const FacilityMap::Node &otherNode: other.facilities_.nodes()) {
         if (otherNode.value()->isConstructed())
             facilities_.insert(otherNode.key(), otherNode.value());
     }
@@ -1747,7 +1746,7 @@ SAWYER_EXPORT Facilities&
 Facilities::erase(Facility &facility) {
     SAWYER_THREAD_TRAITS::LockGuard lock(mutex_);
     FacilityMap map = facilities_;;
-    BOOST_FOREACH (const FacilityMap::Node &node, map.nodes()) {
+    for (const FacilityMap::Node &node: map.nodes()) {
         if (node.value() == &facility)
             facilities_.erase(node.key());
     }
@@ -1769,7 +1768,7 @@ SAWYER_EXPORT Facilities&
 Facilities::reenable() {
     SAWYER_THREAD_TRAITS::LockGuard lock(mutex_);
     eraseDestroyedNS();
-    BOOST_FOREACH (const FacilityMap::Node &node, facilities_.nodes()) {
+    for (const FacilityMap::Node &node: facilities_.nodes()) {
         for (int i=0; i<N_IMPORTANCE; ++i) {
             Importance imp = (Importance)i;
             node.value()->get(imp).enable(impset_.find(imp)!=impset_.end());
@@ -1783,7 +1782,7 @@ SAWYER_EXPORT Facilities&
 Facilities::reenableFrom(const Facilities &other) {
     LockGuard2<SAWYER_THREAD_TRAITS::Mutex> lock(mutex_, other.mutex_);
     eraseDestroyedNS();
-    BOOST_FOREACH (const FacilityMap::Node &src, other.facilities_.nodes()) {
+    for (const FacilityMap::Node &src: other.facilities_.nodes()) {
         if (src.value()->isConstructed()) {
             FacilityMap::NodeIterator fi_dst = facilities_.find(src.key());
             if (fi_dst!=facilities_.nodes().end()) {
@@ -1833,7 +1832,7 @@ Facilities::enableNS(Importance imp, bool b) {
     } else {
         impset_.erase(imp);
     }
-    BOOST_FOREACH (const FacilityMap::Node &node, facilities_.nodes())
+    for (const FacilityMap::Node &node: facilities_.nodes())
         node.value()->get(imp).enable(b);
     return *this;
 }
@@ -1843,7 +1842,7 @@ SAWYER_EXPORT Facilities&
 Facilities::enable(bool b) {
     SAWYER_THREAD_TRAITS::LockGuard lock(mutex_);
     eraseDestroyedNS();
-    BOOST_FOREACH (Facility *facility, facilities_.values()) {
+    for (Facility *facility: facilities_.values()) {
         if (b) {
             for (int i=0; i<N_IMPORTANCE; ++i) {
                 Importance imp = (Importance)i;
@@ -2062,7 +2061,7 @@ Facilities::parseImportanceList(const boost::regex &facilityNamePattern, const c
 std::vector<Facility*>
 Facilities::matchingFacilitiesNS(const boost::regex &namePattern) const {
     std::vector<Facility*> retval;
-    BOOST_FOREACH (const FacilityMap::Node &node, facilities_.nodes()) {
+    for (const FacilityMap::Node &node: facilities_.nodes()) {
         if (boost::regex_match(node.key(), namePattern))
             retval.push_back(node.value());
     }
@@ -2139,7 +2138,7 @@ Facilities::control(const std::string &ss) {
         } else {
             std::vector<Facility*> found = matchingFacilitiesNS(term.facilityNamePattern);
             ASSERT_forbid(found.empty());
-            BOOST_FOREACH (Facility *facility, found) {
+            for (Facility *facility: found) {
                 for (Importance imp = term.lo; imp <= term.hi; imp = (Importance)(imp+1))
                     facility->get(imp).enable(term.enable);
             }
@@ -2154,7 +2153,7 @@ SAWYER_EXPORT std::string
 Facilities::configuration() const {
     SAWYER_THREAD_TRAITS::LockGuard lock(mutex_);
     std::string retval;
-    BOOST_FOREACH (const FacilityMap::Node &facility, facilities_.nodes()) {
+    for (const FacilityMap::Node &facility: facilities_.nodes()) {
         if (facility.value()->isConstructed()) {
             retval += (retval.empty()?"":",") + facility.key() + "(";
             for (int imp=0; imp<N_IMPORTANCE; ++imp) {
@@ -2174,7 +2173,7 @@ SAWYER_EXPORT std::vector<std::string>
 Facilities::facilityNames() const {
     SAWYER_THREAD_TRAITS::LockGuard lock(mutex_);
     std::vector<std::string> allNames;
-    BOOST_FOREACH (const std::string &name, facilities_.keys())
+    for (const std::string &name: facilities_.keys())
         allNames.push_back(name);
     return allNames;
 }
@@ -2193,7 +2192,7 @@ Facilities::eraseDestroyedNS() {
 SAWYER_EXPORT void
 Facilities::shutdown() {
     eraseDestroyedNS();
-    BOOST_FOREACH (Facility *f, facilities_.values()) {
+    for (Facility *f: facilities_.values()) {
         if (f != NULL)
             *f = Facility();
     }
@@ -2217,11 +2216,11 @@ Facilities::print(std::ostream &log) const {
     } else {
         // Get length of longest facility name (assume single-line, no tabs as documented in API)
         size_t maxNameLength = 0;
-        BOOST_FOREACH (const std::string &name, facilities_.keys())
+        for (const std::string &name: facilities_.keys())
             maxNameLength = std::max(maxNameLength, name.size());
 
         // Produce the output
-        BOOST_FOREACH (const FacilityMap::Node &fnode, facilities_.nodes()) {
+        for (const FacilityMap::Node &fnode: facilities_.nodes()) {
             Facility *facility = fnode.value();
 
             // A short easy to read format. Letters indicate the importances that are enabled; dashes keep them aligned.
@@ -2252,7 +2251,7 @@ Facilities::print(std::ostream &log) const {
 
 void
 FacilitiesGuard::save() {
-    BOOST_FOREACH (const std::string &facilityName, facilities_.facilityNames()) {
+    for (const std::string &facilityName: facilities_.facilityNames()) {
         std::vector<bool> &facilityState = state_.insertMaybeDefault(facilityName);
         facilityState.resize(N_IMPORTANCE, false);
         Facility &facility = facilities_.facility(facilityName);
@@ -2263,7 +2262,7 @@ FacilitiesGuard::save() {
 
 void
 FacilitiesGuard::restore() {
-    BOOST_FOREACH (const State::Node &saved, state_.nodes()) {
+    for (const State::Node &saved: state_.nodes()) {
         ASSERT_require(saved.value().size() == N_IMPORTANCE);
         try {
             Facility &facility = facilities_.facility(saved.key());
