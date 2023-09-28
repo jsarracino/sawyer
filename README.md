@@ -51,7 +51,7 @@ One commonly also needs
 
 If you have Spock installed, you don't need to download or compile boost yourself. Just give these commands:
 
-    $ spock-shell --with gnu-system-compilers,c++11-compiler,boost-1.63 --install=yes
+    $ spock-shell --with gnu-system-compilers,c++14-compiler,boost-1.80 --install=yes
     $ mkdir _build && cd _build
     $ cmake .. -DBOOST_ROOT=$BOOST_ROOT
     $ make install
