@@ -168,22 +168,30 @@ PodMarkup::init() {
 
 SAWYER_EXPORT bool
 PodMarkup::emit(const std::string &doc) {
-    // Generate POD documentation into a temporary file. Since perldc doesn't support the "name" property, but rather uses the
-    // file name, we create a temporary directory and place a POD file inside with the name we want.
+    // Generate POD and man documentation into temporary files. Since perldoc doesn't support the "name" property, but rather uses the
+    // file name, we place the pod documentation into a temporary directory and use pod2man to generate troff output.
+    // This output in turn goes into a temporary and is sent to man. 
+    // man on macOS does not support reading from standard input (e.g. with -l -), so we must use a temp file for it as well.
     FileSystem::TemporaryDirectory tmpDir;
-    FileSystem::TemporaryFile tmpFile(tmpDir.name() / (pageName() + ".pod"));
-    tmpFile.stream() <<(*this)(doc);
-    tmpFile.stream().close();
+    const auto pod_fname = tmpDir.name() / (pageName() + ".pod");
+    const auto man_fname = tmpDir.name() / (pageName() + ".man");
+    FileSystem::TemporaryFile podTmp(pod_fname);
+    FileSystem::TemporaryFile manTmp(man_fname);
+    
+    podTmp.stream() <<(*this)(doc);
+    podTmp.stream().flush();
 
-    std::string cmd = "env LESSCHARSET=utf-8 perldoc"
-                      " -o man"
-                      " -w 'center:" + escapeSingleQuoted(chapterTitleOrDefault()) + "'"
-                      " -w 'date:" + escapeSingleQuoted(versionDateOrDefault()) + "'"
-                      " -w 'release:" + escapeSingleQuoted(versionStringOrDefault()) + "'"
-                      " -w 'section:" + escapeSingleQuoted(chapterNumberOrDefault()) + "'"
-                      " '" + escapeSingleQuoted(tmpFile.name().string()) + "'";
+    std::string pod_cmd = "env LESSCHARSET=utf-8 pod2man" 
+                        " --center='" + escapeSingleQuoted(chapterTitleOrDefault()) + "'"
+                        " --date='" + escapeSingleQuoted(versionDateOrDefault()) + "'"
+                        " --release='" + escapeSingleQuoted(versionStringOrDefault()) + "'"
+                        " --section='" + escapeSingleQuoted(chapterNumberOrDefault()) + "'"
+                        " '" + escapeSingleQuoted(podTmp.name().string()) + "'" 
+                        " '" + escapeSingleQuoted(manTmp.name().string()) + "'";
 
-    return system(cmd.c_str()) == 0;
+    std::string man_cmd = "man '" + escapeSingleQuoted(manTmp.name().string()) + "'";
+
+    return system(pod_cmd.c_str()) == 0 && system(man_cmd.c_str()) == 0;
 };
 
 SAWYER_EXPORT std::string
